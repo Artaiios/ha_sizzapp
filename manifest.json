@@ -1,0 +1,12 @@
+{
+  "domain": "sizzapp",
+  "name": "Sizzapp Location Sharing",
+  "version": "1.0.0",
+  "documentation": "https://github.com/yourname/ha-sizzapp",
+  "issue_tracker": "https://github.com/yourname/ha-sizzapp/issues",
+  "codeowners": ["@yourname"],
+  "iot_class": "cloud_polling",
+  "integration_type": "hub",
+  "requirements": [],
+  "loggers": ["custom_components.sizzapp"]
+}
