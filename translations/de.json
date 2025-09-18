@@ -1,0 +1,27 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Sizzapp verbinden",
+        "description": "Gib deinen Sizzapp-Shared-Code ein.",
+        "data": {
+          "shared_code": "Shared-Code"
+        }
+      }
+    },
+    "error": {
+      "invalid_shared_code": "Bitte einen gültigen Shared-Code eingeben."
+    },
+    "abort": {}
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Sizzapp Optionen",
+        "data": {
+          "scan_interval": "Abfrageintervall (Sekunden)"
+        }
+      }
+    }
+  }
+}
