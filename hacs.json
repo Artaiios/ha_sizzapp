@@ -1,7 +1,7 @@
 {
   "name": "Sizzapp Location Sharing",
-  "content_in_root": false,
-  "render_readme": false,
+  "content_in_root": true,
+  "render_readme": true,
   "filename": "README.md",
   "country": "all"
 }
