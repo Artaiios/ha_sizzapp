@@ -16,7 +16,8 @@
       "invalid_code": "Ungültiger oder abgelaufener Share-Link.",
       "not_found": "Share nicht gefunden.",
       "rate_limited": "Rate-Limit erreicht. Bitte später erneut versuchen.",
-      "unexpected_response": "Unerwartete API-Antwort."
+      "unexpected_response": "Unerwartete API-Antwort.",
+      "unknown": "Unbekannter Fehler ist aufgetreten."
     },
     "options": {
       "step": {
