@@ -5,8 +5,19 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorDeviceClass,
     SensorStateClass,
-    UnitOfSpeed,
 )
+# 👉 UnitOfSpeed kommt (je nach HA-Version) aus homeassistant.const
+try:
+    from homeassistant.const import UnitOfSpeed  # modern (Enum)
+    KMH = UnitOfSpeed.KILOMETERS_PER_HOUR
+    MPH = UnitOfSpeed.MILES_PER_HOUR
+except Exception:
+    # Fallback für ältere/abweichende Versionen (string-constants)
+    from homeassistant.const import SPEED_KILOMETERS_PER_HOUR, SPEED_MILES_PER_HOUR
+    UnitOfSpeed = str  # type: ignore[assignment]
+    KMH = SPEED_KILOMETERS_PER_HOUR
+    MPH = SPEED_MILES_PER_HOUR
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
@@ -73,8 +84,8 @@ class SizzappSpeedSensor(_BaseEntity):
         self._attr_unique_id = f"sizzapp_{code_hint}_{unit_id}_speed"
 
     @property
-    def native_unit_of_measurement(self):
-        return UnitOfSpeed.MILES_PER_HOUR if self._speed_unit == "mph" else UnitOfSpeed.KILOMETERS_PER_HOUR
+    def native_unit_of_measurement(self) -> UnitOfSpeed | str:
+        return MPH if self._speed_unit == "mph" else KMH
 
     @property
     def native_value(self) -> float | None:
