@@ -35,8 +35,9 @@ class SizzappConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         # Nicht genutzt (keine YAML-Importe)
         return await self.async_step_user(user_input)
 
-    async def async_step_options(self, user_input=None) -> FlowResult:
-        return await self.async_step_init(user_input)
+    @staticmethod
+    async def async_get_options_flow(config_entry):
+        return SizzappOptionsFlowHandler(config_entry)
 
 
 class SizzappOptionsFlowHandler(config_entries.OptionsFlow):
