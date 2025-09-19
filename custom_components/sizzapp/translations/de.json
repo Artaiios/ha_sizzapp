@@ -2,25 +2,35 @@
   "config": {
     "step": {
       "user": {
-        "title": "Sizzapp verbinden",
-        "description": "Gib deinen Sizzapp-Shared-Code ein.",
+        "title": "Sizzapp-Share verbinden",
+        "description": "Füge die Sizzapp-Share-URL **oder** nur den Shared Code ein – wir erkennen das automatisch.",
         "data": {
-          "shared_code": "Shared-Code"
+          "shared_code": "Shared Code (optional)",
+          "share_url": "Share-URL (bevorzugt)"
         }
       }
     },
     "error": {
-      "invalid_shared_code": "Bitte einen gültigen Shared-Code eingeben."
+      "bad_url": "Das sieht nicht nach einer gültigen URL aus.",
+      "cannot_connect": "Sizzapp ist aktuell nicht erreichbar.",
+      "invalid_code": "Ungültiger oder abgelaufener Share-Link.",
+      "not_found": "Share nicht gefunden.",
+      "rate_limited": "Rate-Limit erreicht. Bitte später erneut versuchen.",
+      "unexpected_response": "Unerwartete API-Antwort."
     },
-    "abort": {}
-  },
-  "options": {
-    "step": {
-      "init": {
-        "title": "Sizzapp Optionen",
-        "data": {
-          "scan_interval": "Abfrageintervall (Sekunden)"
+    "options": {
+      "step": {
+        "init": {
+          "title": "Sizzapp-Optionen",
+          "data": {
+            "poll_interval": "Poll-Intervall (Sekunden, min 15)",
+            "speed_unit": "Geschwindigkeit (kmh/mph)",
+            "coord_precision": "Koordinatenpräzision (0–6)"
+          }
         }
+      },
+      "error": {
+        "poll_too_low": "Bitte mindestens 15 Sekunden einstellen."
       }
     }
   }
