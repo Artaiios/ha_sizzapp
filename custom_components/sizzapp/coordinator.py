@@ -2,12 +2,16 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Any, Dict, List
 import asyncio
-from yarl import URL
+import logging
+from urllib.parse import urlencode
+
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import DOMAIN, API_URL, API_PARAM, CONF_SHARED_CODE, CONF_SHARE_URL, CONF_POLL_INTERVAL
+from .const import DOMAIN, API_URL, API_PARAM
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class SizzappCoordinator(DataUpdateCoordinator[Dict[int, Dict[str, Any]]]):
@@ -15,13 +19,13 @@ class SizzappCoordinator(DataUpdateCoordinator[Dict[int, Dict[str, Any]]]):
 
     def __init__(self, hass: HomeAssistant, shared_code: str, share_url: str | None, poll_interval: int) -> None:
         self.hass = hass
-        self._shared_code = shared_code
-        self._share_url = share_url
+        self._shared_code = (shared_code or "").strip()
+        self._share_url = (share_url or "").strip() or None
         self.session = async_get_clientsession(hass)
         super().__init__(
             hass,
-            hass.helpers.logger.logging.getLogger(f"{DOMAIN}.coordinator"),
-            name=f"{DOMAIN}-{shared_code}",
+            _LOGGER,
+            name=f"{DOMAIN}-{self._shared_code or 'url'}",
             update_interval=timedelta(seconds=poll_interval),
         )
 
@@ -29,7 +33,8 @@ class SizzappCoordinator(DataUpdateCoordinator[Dict[int, Dict[str, Any]]]):
     def api_url(self) -> str:
         if self._share_url:
             return self._share_url
-        return str(URL(API_URL).with_query({API_PARAM: self._shared_code}))
+        qs = urlencode({API_PARAM: self._shared_code})
+        return f"{API_URL}?{qs}"
 
     async def _async_update_data(self) -> Dict[int, Dict[str, Any]]:
         try:
