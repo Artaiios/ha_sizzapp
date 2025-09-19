@@ -1,7 +1,7 @@
 {
-  "domain": "sizzapp",
+  "domain": "SIZZAPP",
   "name": "Sizzapp Location Sharing",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "documentation": "https://github.com/Artaiios/ha-sizzapp",
   "issue_tracker": "https://github.com/Artaiios/ha-sizzapp/issues",
   "codeowners": ["@yArtaiios"],
