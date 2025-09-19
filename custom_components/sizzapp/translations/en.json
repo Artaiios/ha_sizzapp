@@ -16,7 +16,8 @@
       "invalid_code": "Invalid or expired share link.",
       "not_found": "Share not found.",
       "rate_limited": "Rate limited. Try again later.",
-      "unexpected_response": "Unexpected API response."
+      "unexpected_response": "Unexpected API response.",
+      "unknown": "Unknown error occurred."
     },
     "options": {
       "step": {
