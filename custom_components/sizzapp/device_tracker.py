@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Any
 from datetime import datetime, timezone, timedelta
-import dateutil.parser
+
 from homeassistant.components.device_tracker.config_entry import TrackerEntity
 from homeassistant.components.device_tracker.const import SourceType
 from homeassistant.config_entries import ConfigEntry
@@ -11,6 +11,19 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, MANUFACTURER, CONF_COORD_PRECISION, DEFAULT_COORD_PRECISION
 from .coordinator import SizzappCoordinator
+
+
+def _parse_iso_utc(ts: str | None) -> datetime | None:
+    """Parst '2025-09-19T23:20:33.000Z' robust mit stdlib."""
+    if not ts:
+        return None
+    try:
+        # 'Z' in '+00:00' wandeln
+        if ts.endswith("Z"):
+            ts = ts[:-1] + "+00:00"
+        return datetime.fromisoformat(ts).astimezone(timezone.utc)
+    except Exception:
+        return None
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
@@ -48,14 +61,10 @@ class SizzappTracker(TrackerEntity):
         if not (self.coordinator.last_update_success and self._unit_id in (self.coordinator.data or {})):
             return False
         u = (self.coordinator.data or {}).get(self._unit_id, {})
-        ts = u.get("dt_unit")
-        if not ts:
+        dt = _parse_iso_utc(u.get("dt_unit"))
+        if dt is None:
             return True
-        try:
-            dt = dateutil.parser.isoparse(ts).astimezone(timezone.utc)
-            return (datetime.now(timezone.utc) - dt) < timedelta(minutes=15)
-        except Exception:
-            return True
+        return (datetime.now(timezone.utc) - dt) < timedelta(minutes=15)
 
     @property
     def latitude(self) -> float | None:
@@ -63,9 +72,7 @@ class SizzappTracker(TrackerEntity):
         if not u:
             return None
         lat = u.get("lat")
-        if lat is None:
-            return None
-        return round(float(lat), self._precision)
+        return None if lat is None else round(float(lat), self._precision)
 
     @property
     def longitude(self) -> float | None:
@@ -73,9 +80,7 @@ class SizzappTracker(TrackerEntity):
         if not u:
             return None
         lng = u.get("lng")
-        if lng is None:
-            return None
-        return round(float(lng), self._precision)
+        return None if lng is None else round(float(lng), self._precision)
 
     @property
     def location_accuracy(self) -> int | None:
@@ -93,9 +98,6 @@ class SizzappTracker(TrackerEntity):
             "last_update_utc": u.get("dt_unit"),
             "image_filename": u.get("image_filename"),
         }
-
-    async def async_update(self) -> None:
-        return
 
     async def async_added_to_hass(self) -> None:
         self.async_on_remove(self.coordinator.async_add_listener(self.async_write_ha_state))
