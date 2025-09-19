@@ -2,7 +2,8 @@ DOMAIN = "sizzapp"
 MANUFACTURER = "Sizzapp"
 
 # Passe diese URL ggf. an dein echtes Share-API-Endpunktformat an:
-API_URL = "https://api.sizzapp.com/app/location_sharing/info?shared_code={code}"
+API_URL = "https://api.sizzapp.com/app/location_sharing/info"
+API_PARAM = "shared_code"
 
 CONF_SHARED_CODE = "shared_code"
 CONF_SHARE_URL = "share_url"
