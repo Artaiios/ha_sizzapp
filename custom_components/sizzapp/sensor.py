@@ -6,12 +6,6 @@ from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorStateClass,
 )
-# Keine UnitOfSpeed verwenden – nur String-Konstanten:
-from homeassistant.const import (
-    SPEED_KILOMETERS_PER_HOUR,
-    SPEED_MILES_PER_HOUR,
-)
-
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
@@ -19,6 +13,29 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, MANUFACTURER, CONF_SPEED_UNIT, DEFAULT_SPEED_UNIT
 from .coordinator import SizzappCoordinator
+
+# ---------- Cross-Version Units Handling ----------
+# Try modern Enum first:
+try:
+    from homeassistant.const import UnitOfSpeed  # type: ignore
+    KMH: Any = UnitOfSpeed.KILOMETERS_PER_HOUR
+    MPH: Any = UnitOfSpeed.MILES_PER_HOUR
+except Exception:
+    # Try legacy string constants:
+    try:
+        from homeassistant.const import (  # type: ignore
+            SPEED_KILOMETERS_PER_HOUR,
+            SPEED_MILES_PER_HOUR,
+        )
+        UnitOfSpeed = str  # type: ignore
+        KMH = SPEED_KILOMETERS_PER_HOUR
+        MPH = SPEED_MILES_PER_HOUR
+    except Exception:
+        # Ultimate fallback: plain strings
+        UnitOfSpeed = str  # type: ignore
+        KMH = "km/h"
+        MPH = "mph"
+# --------------------------------------------------
 
 
 async def async_setup_entry(
@@ -78,8 +95,8 @@ class SizzappSpeedSensor(_BaseEntity):
         self._attr_unique_id = f"sizzapp_{code_hint}_{unit_id}_speed"
 
     @property
-    def native_unit_of_measurement(self) -> str:
-        return SPEED_MILES_PER_HOUR if self._speed_unit == "mph" else SPEED_KILOMETERS_PER_HOUR
+    def native_unit_of_measurement(self) -> UnitOfSpeed | str:
+        return MPH if self._speed_unit == "mph" else KMH
 
     @property
     def native_value(self) -> float | None:
