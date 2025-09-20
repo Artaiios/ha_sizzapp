@@ -61,7 +61,7 @@ class SizzappLocationTracker(CoordinatorEntity[SizzappCoordinator], TrackerEntit
     @property
     def longitude(self) -> float | None:
         u = (self.coordinator.data or {}).get(self._unit_id, {})
-        lon = u.get("lon") or u.get("longitude")
+        lon = u.get("lon") or u.get ("lng") u.get("longitude")
         try:
             return float(lon) if lon is not None else None
         except (TypeError, ValueError):
