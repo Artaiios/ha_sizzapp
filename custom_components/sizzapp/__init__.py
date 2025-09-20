@@ -6,6 +6,11 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from .const import DOMAIN, PLATFORMS, CONF_SHARED_CODE, CONF_SHARE_URL, CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL
 from .coordinator import SizzappCoordinator
 
+PLATFORMS: list[Platform] = [
+    Platform.DEVICE_TRACKER,
+    Platform.SENSOR,
+    Platform.BINARY_SENSOR, 
+]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     shared_code: str = entry.data.get(CONF_SHARED_CODE, "")
