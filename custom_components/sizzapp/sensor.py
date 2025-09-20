@@ -1,49 +1,23 @@
 from __future__ import annotations
 from typing import Any
 
-from homeassistant.components.sensor import (
-    SensorEntity,
-    SensorDeviceClass,
-    SensorStateClass,
-)
+from homeassistant.components.sensor import SensorEntity, SensorDeviceClass, SensorStateClass
+from homeassistant.components.binary_sensor import BinarySensorEntity, BinarySensorDeviceClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.const import UnitOfSpeed
 
 from .const import DOMAIN, MANUFACTURER, CONF_SPEED_UNIT, DEFAULT_SPEED_UNIT
 from .coordinator import SizzappCoordinator
 
-# ---------- Cross-Version Units Handling ----------
-# Try modern Enum first:
-try:
-    from homeassistant.const import UnitOfSpeed  # type: ignore
-    KMH: Any = UnitOfSpeed.KILOMETERS_PER_HOUR
-    MPH: Any = UnitOfSpeed.MILES_PER_HOUR
-except Exception:
-    # Try legacy string constants:
-    try:
-        from homeassistant.const import (  # type: ignore
-            SPEED_KILOMETERS_PER_HOUR,
-            SPEED_MILES_PER_HOUR,
-        )
-        UnitOfSpeed = str  # type: ignore
-        KMH = SPEED_KILOMETERS_PER_HOUR
-        MPH = SPEED_MILES_PER_HOUR
-    except Exception:
-        # Ultimate fallback: plain strings
-        UnitOfSpeed = str  # type: ignore
-        KMH = "km/h"
-        MPH = "mph"
-# --------------------------------------------------
 
-
-async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
-) -> None:
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     coordinator: SizzappCoordinator = hass.data[DOMAIN][entry.entry_id]
     speed_unit = entry.options.get(CONF_SPEED_UNIT, DEFAULT_SPEED_UNIT)
-    code_hint = coordinator.name.removeprefix("sizzapp-")
+    code_hint = (getattr(coordinator, "name", None) or "sizzapp").removeprefix("sizzapp-")
 
     entities: list[SensorEntity] = []
     for unit_id, data in (coordinator.data or {}).items():
@@ -58,9 +32,9 @@ def _kmh_to_mph(v: float) -> float:
     return v * 0.6213711922
 
 
-class _BaseEntity(SensorEntity):
+class _BaseEntity(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator: SizzappCoordinator, unit_id: int, name: str, code_hint: str) -> None:
-        self.coordinator = coordinator
+        super().__init__(coordinator)
         self._unit_id = unit_id
         self._devname = name
         self._code_hint = code_hint
@@ -82,21 +56,14 @@ class SizzappSpeedSensor(_BaseEntity):
     _attr_device_class = SensorDeviceClass.SPEED
     _attr_state_class = SensorStateClass.MEASUREMENT
 
-    def __init__(
-        self,
-        coordinator: SizzappCoordinator,
-        unit_id: int,
-        name: str,
-        speed_unit: str,
-        code_hint: str,
-    ) -> None:
+    def __init__(self, coordinator: SizzappCoordinator, unit_id: int, name: str, speed_unit: str, code_hint: str) -> None:
         super().__init__(coordinator, unit_id, name, code_hint)
         self._speed_unit = speed_unit
         self._attr_unique_id = f"sizzapp_{code_hint}_{unit_id}_speed"
 
     @property
-    def native_unit_of_measurement(self) -> UnitOfSpeed | str:
-        return MPH if self._speed_unit == "mph" else KMH
+    def native_unit_of_measurement(self) -> str:
+        return UnitOfSpeed.MILES_PER_HOUR if self._speed_unit == "mph" else UnitOfSpeed.KILOMETERS_PER_HOUR
 
     @property
     def native_value(self) -> float | None:
@@ -115,6 +82,7 @@ class SizzappHeadingSensor(_BaseEntity):
     _attr_has_entity_name = True
     _attr_name = "Heading"
     _attr_icon = "mdi:compass"
+    _attr_native_unit_of_measurement = "°"
 
     def __init__(self, coordinator: SizzappCoordinator, unit_id: int, name: str, code_hint: str) -> None:
         super().__init__(coordinator, unit_id, name, code_hint)
@@ -130,9 +98,10 @@ class SizzappHeadingSensor(_BaseEntity):
             return None
 
 
-class SizzappTripSensor(_BaseEntity):
+class SizzappTripSensor(_BaseEntity, BinarySensorEntity):
     _attr_has_entity_name = True
     _attr_name = "In Trip"
+    _attr_device_class = BinarySensorDeviceClass.MOTION
     _attr_icon = "mdi:car"
 
     def __init__(self, coordinator: SizzappCoordinator, unit_id: int, name: str, code_hint: str) -> None:
@@ -140,9 +109,7 @@ class SizzappTripSensor(_BaseEntity):
         self._attr_unique_id = f"sizzapp_{code_hint}_{unit_id}_in_trip"
 
     @property
-    def native_value(self) -> str | None:
+    def is_on(self) -> bool | None:
         u = (self.coordinator.data or {}).get(self._unit_id, {})
         val = u.get("in_trip")
-        if val is None:
-            return None
-        return "on" if bool(val) else "off"
+        return None if val is None else bool(val)
