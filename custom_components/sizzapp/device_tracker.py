@@ -1,7 +1,7 @@
 # custom_components/sizzapp/device_tracker.py
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any
 
 from homeassistant.components.device_tracker.config_entry import TrackerEntity
 from homeassistant.components.device_tracker.const import SourceType
@@ -15,7 +15,10 @@ from .const import DOMAIN, MANUFACTURER
 from .coordinator import SizzappCoordinator
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+) -> None:
+    """Set up Sizzapp device trackers from a config entry."""
     coordinator: SizzappCoordinator = hass.data[DOMAIN][entry.entry_id]
     code_hint = (getattr(coordinator, "name", None) or "sizzapp").removeprefix("sizzapp-")
 
@@ -23,14 +26,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     for unit_id, data in (coordinator.data or {}).items():
         name = (data.get("name") or f"Unit {unit_id}").strip()
         entities.append(SizzappLocationTracker(coordinator, unit_id, name, code_hint))
+
     async_add_entities(entities)
 
 
 class SizzappLocationTracker(CoordinatorEntity[SizzappCoordinator], TrackerEntity):
+    """GPS-Tracker-Entität für Sizzapp-Geräte."""
+
     _attr_has_entity_name = True
-    _attr_name = "Location"
+    _attr_name = "Location"  # wird in DE als „Standort“ angezeigt
     _attr_icon = "mdi:map-marker"
-    _attr_source_type = SourceType.GPS  # wichtig
+    _attr_source_type = SourceType.GPS
 
     def __init__(self, coordinator: SizzappCoordinator, unit_id: int, name: str, code_hint: str) -> None:
         super().__init__(coordinator)
@@ -46,6 +52,7 @@ class SizzappLocationTracker(CoordinatorEntity[SizzappCoordinator], TrackerEntit
 
     @property
     def available(self) -> bool:
+        """Nur verfügbar, wenn der letzte Abruf ok war und wir Daten für die Unit haben."""
         return self.coordinator.last_update_success and self._unit_id in (self.coordinator.data or {})
 
     # ---- Pflichtfelder für TrackerEntity ----
@@ -61,7 +68,7 @@ class SizzappLocationTracker(CoordinatorEntity[SizzappCoordinator], TrackerEntit
     @property
     def longitude(self) -> float | None:
         u = (self.coordinator.data or {}).get(self._unit_id, {})
-        lon = u.get("lon") or u.get ("lng") or u.get("longitude")
+        lon = u.get("lon") or u.get("lng") or u.get("longitude")
         try:
             return float(lon) if lon is not None else None
         except (TypeError, ValueError):
@@ -69,21 +76,21 @@ class SizzappLocationTracker(CoordinatorEntity[SizzappCoordinator], TrackerEntit
 
     @property
     def location_accuracy(self) -> int:
-        """MUSS eine Zahl liefern – niemals None!"""
+        """MUSS eine Zahl liefern (Meter). Nie None zurückgeben."""
         u = (self.coordinator.data or {}).get(self._unit_id, {})
         acc = u.get("accuracy") or u.get("hdop") or u.get("radius")
         try:
-            # auf ganze Meter runden; falls None/ungültig -> 0
             return max(0, int(round(float(acc)))) if acc is not None else 0
         except (TypeError, ValueError):
             return 0
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
+        """Zusätzliche Attribute, rein informativ."""
         u = (self.coordinator.data or {}).get(self._unit_id, {})
         return {
             "speed_kmh": u.get("speed"),
             "course": u.get("angle"),
             "in_trip": u.get("in_trip"),
-            "last_update": u.get("ts") or u.get("timestamp"),
+            "last_update": u.get("dt_unit") or u.get("ts") or u.get("timestamp"),
         }
