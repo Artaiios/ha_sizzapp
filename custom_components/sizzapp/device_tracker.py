@@ -1,6 +1,7 @@
+# custom_components/sizzapp/device_tracker.py
 from __future__ import annotations
-from typing import Any
-from datetime import datetime, timezone, timedelta
+
+from typing import Any, cast
 
 from homeassistant.components.device_tracker.config_entry import TrackerEntity
 from homeassistant.components.device_tracker.const import SourceType
@@ -8,96 +9,81 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, MANUFACTURER, CONF_COORD_PRECISION, DEFAULT_COORD_PRECISION
+from .const import DOMAIN, MANUFACTURER
 from .coordinator import SizzappCoordinator
-
-
-def _parse_iso_utc(ts: str | None) -> datetime | None:
-    """Parst '2025-09-19T23:20:33.000Z' robust mit stdlib."""
-    if not ts:
-        return None
-    try:
-        # 'Z' in '+00:00' wandeln
-        if ts.endswith("Z"):
-            ts = ts[:-1] + "+00:00"
-        return datetime.fromisoformat(ts).astimezone(timezone.utc)
-    except Exception:
-        return None
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     coordinator: SizzappCoordinator = hass.data[DOMAIN][entry.entry_id]
-    precision = entry.options.get(CONF_COORD_PRECISION, DEFAULT_COORD_PRECISION)
+    code_hint = (getattr(coordinator, "name", None) or "sizzapp").removeprefix("sizzapp-")
 
-    entities = []
+    entities: list[SizzappLocationTracker] = []
     for unit_id, data in (coordinator.data or {}).items():
-        entities.append(SizzappTracker(coordinator, unit_id, data, precision))
+        name = (data.get("name") or f"Unit {unit_id}").strip()
+        entities.append(SizzappLocationTracker(coordinator, unit_id, name, code_hint))
     async_add_entities(entities)
 
 
-class SizzappTracker(TrackerEntity):
+class SizzappLocationTracker(CoordinatorEntity[SizzappCoordinator], TrackerEntity):
     _attr_has_entity_name = True
     _attr_name = "Location"
-    _attr_source_type = SourceType.GPS
+    _attr_icon = "mdi:map-marker"
+    _attr_source_type = SourceType.GPS  # wichtig
 
-    def __init__(self, coordinator: SizzappCoordinator, unit_id: int, data: dict[str, Any], precision: int) -> None:
-        self.coordinator = coordinator
+    def __init__(self, coordinator: SizzappCoordinator, unit_id: int, name: str, code_hint: str) -> None:
+        super().__init__(coordinator)
         self._unit_id = unit_id
-        self._precision = int(max(0, min(6, precision)))
-        self._device_name = (data.get("name") or f"Unit {unit_id}").strip()
-
-        code_hint = coordinator.name.removeprefix("sizzapp-")
-        self._attr_unique_id = f"sizzapp_{code_hint}_{unit_id}_tracker"
+        self._devname = name
+        self._attr_unique_id = f"sizzapp_{code_hint}_{unit_id}_location"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, str(unit_id))},
             manufacturer=MANUFACTURER,
-            name=self._device_name,
+            name=name,
             model="Tracker",
         )
 
     @property
     def available(self) -> bool:
-        if not (self.coordinator.last_update_success and self._unit_id in (self.coordinator.data or {})):
-            return False
-        u = (self.coordinator.data or {}).get(self._unit_id, {})
-        dt = _parse_iso_utc(u.get("dt_unit"))
-        if dt is None:
-            return True
-        return (datetime.now(timezone.utc) - dt) < timedelta(minutes=15)
+        return self.coordinator.last_update_success and self._unit_id in (self.coordinator.data or {})
 
+    # ---- Pflichtfelder für TrackerEntity ----
     @property
     def latitude(self) -> float | None:
-        u = (self.coordinator.data or {}).get(self._unit_id)
-        if not u:
+        u = (self.coordinator.data or {}).get(self._unit_id, {})
+        lat = u.get("lat") or u.get("latitude")
+        try:
+            return float(lat) if lat is not None else None
+        except (TypeError, ValueError):
             return None
-        lat = u.get("lat")
-        return None if lat is None else round(float(lat), self._precision)
 
     @property
     def longitude(self) -> float | None:
-        u = (self.coordinator.data or {}).get(self._unit_id)
-        if not u:
+        u = (self.coordinator.data or {}).get(self._unit_id, {})
+        lon = u.get("lon") or u.get("longitude")
+        try:
+            return float(lon) if lon is not None else None
+        except (TypeError, ValueError):
             return None
-        lng = u.get("lng")
-        return None if lng is None else round(float(lng), self._precision)
 
     @property
-    def location_accuracy(self) -> int | None:
-        return None
+    def location_accuracy(self) -> int:
+        """MUSS eine Zahl liefern – niemals None!"""
+        u = (self.coordinator.data or {}).get(self._unit_id, {})
+        acc = u.get("accuracy") or u.get("hdop") or u.get("radius")
+        try:
+            # auf ganze Meter runden; falls None/ungültig -> 0
+            return max(0, int(round(float(acc)))) if acc is not None else 0
+        except (TypeError, ValueError):
+            return 0
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         u = (self.coordinator.data or {}).get(self._unit_id, {})
         return {
-            "unit_id": self._unit_id,
-            "name": u.get("name"),
             "speed_kmh": u.get("speed"),
-            "heading": u.get("angle"),
+            "course": u.get("angle"),
             "in_trip": u.get("in_trip"),
-            "last_update_utc": u.get("dt_unit"),
-            "image_filename": u.get("image_filename"),
+            "last_update": u.get("ts") or u.get("timestamp"),
         }
-
-    async def async_added_to_hass(self) -> None:
-        self.async_on_remove(self.coordinator.async_add_listener(self.async_write_ha_state))
