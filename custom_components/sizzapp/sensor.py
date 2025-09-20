@@ -12,6 +12,40 @@ from homeassistant.const import UnitOfSpeed
 
 from .const import DOMAIN, MANUFACTURER, CONF_SPEED_UNIT, DEFAULT_SPEED_UNIT
 from .coordinator import SizzappCoordinator
+# custom_components/sizzapp/sensor.py (Auszug)
+from homeassistant.components.sensor import SensorEntity, SensorDeviceClass, SensorStateClass
+from homeassistant.const import UnitOfSpeed
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
+class SizzappSpeedSensor(CoordinatorEntity, SensorEntity):
+    _attr_has_entity_name = True
+    _attr_name = "Speed"
+    _attr_device_class = SensorDeviceClass.SPEED
+    _attr_state_class = SensorStateClass.MEASUREMENT  # wichtig für Statistiken
+
+    def __init__(self, coordinator, unit_id: int, name: str, speed_unit: str, code_hint: str) -> None:
+        super().__init__(coordinator)
+        self._unit_id = unit_id
+        self._speed_unit = speed_unit  # "km/h" oder "mph" als Option
+        self._attr_unique_id = f"sizzapp_{code_hint}_{unit_id}_speed"
+
+    @property
+    def native_unit_of_measurement(self) -> str:
+        return UnitOfSpeed.MILES_PER_HOUR if self._speed_unit == "mph" else UnitOfSpeed.KILOMETERS_PER_HOUR
+
+    @property
+    def native_value(self) -> float | None:
+        u = (self.coordinator.data or {}).get(self._unit_id, {})
+        spd = u.get("speed")  # erwarte km/h aus deiner API
+        if spd is None:
+            return None
+        try:
+            v = float(spd)
+        except (TypeError, ValueError):
+            return None
+        if self.native_unit_of_measurement == UnitOfSpeed.MILES_PER_HOUR:
+            v = v * 0.6213711922
+        return round(v, 1)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
