@@ -14,4 +14,4 @@ DEFAULT_POLL_INTERVAL = 60  # Sekunden
 DEFAULT_SPEED_UNIT = "kmh"
 DEFAULT_COORD_PRECISION = 6
 
-PLATFORMS = ["device_tracker", "sensor"]
+PLATFORMS = ["device_tracker", "sensor", "binary_sensor"]

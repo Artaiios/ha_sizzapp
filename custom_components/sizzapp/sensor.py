@@ -2,7 +2,6 @@ from __future__ import annotations
 from typing import Any
 
 from homeassistant.components.sensor import SensorEntity, SensorDeviceClass, SensorStateClass
-from homeassistant.components.binary_sensor import BinarySensorEntity, BinarySensorDeviceClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
@@ -57,7 +56,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     for unit_id, data in (coordinator.data or {}).items():
         name = (data.get("name") or f"Unit {unit_id}").strip()
         entities.append(SizzappSpeedSensor(coordinator, unit_id, name, speed_unit, code_hint))
-        entities.append(SizzappTripSensor(coordinator, unit_id, name, code_hint))
         entities.append(SizzappHeadingSensor(coordinator, unit_id, name, code_hint))
     async_add_entities(entities)
 
@@ -132,18 +130,3 @@ class SizzappHeadingSensor(_BaseEntity):
             return None
 
 
-class SizzappTripSensor(_BaseEntity, BinarySensorEntity):
-    _attr_has_entity_name = True
-    _attr_name = "In Trip"
-    _attr_device_class = BinarySensorDeviceClass.MOTION
-    _attr_icon = "mdi:car"
-
-    def __init__(self, coordinator: SizzappCoordinator, unit_id: int, name: str, code_hint: str) -> None:
-        super().__init__(coordinator, unit_id, name, code_hint)
-        self._attr_unique_id = f"sizzapp_{code_hint}_{unit_id}_in_trip"
-
-    @property
-    def is_on(self) -> bool | None:
-        u = (self.coordinator.data or {}).get(self._unit_id, {})
-        val = u.get("in_trip")
-        return None if val is None else bool(val)
