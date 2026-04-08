@@ -3,7 +3,7 @@ from __future__ import annotations
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, MANUFACTURER, IMAGE_BASE_URL
+from .const import DOMAIN, MANUFACTURER
 from .coordinator import SizzappCoordinator
 
 
@@ -18,10 +18,6 @@ class SizzappBaseEntity(CoordinatorEntity[SizzappCoordinator]):
         self._devname = name
         self._code_hint = code_hint
 
-        # Bild aus der API (falls vorhanden)
-        image_filename = (coordinator.data or {}).get(unit_id, {}).get("image_filename")
-        entity_picture = f"{IMAGE_BASE_URL}{image_filename}" if image_filename else None
-
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, str(unit_id))},
             manufacturer=MANUFACTURER,
@@ -29,8 +25,6 @@ class SizzappBaseEntity(CoordinatorEntity[SizzappCoordinator]):
             model="Tracker",
             configuration_url="https://www.sizzapp.com",
         )
-        if entity_picture:
-            self._attr_device_info["entity_picture"] = entity_picture
 
     @property
     def available(self) -> bool:
