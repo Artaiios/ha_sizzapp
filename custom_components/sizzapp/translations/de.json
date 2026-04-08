@@ -18,21 +18,22 @@
       "rate_limited": "Rate-Limit erreicht. Bitte später erneut versuchen.",
       "unexpected_response": "Unerwartete API-Antwort.",
       "unknown": "Unbekannter Fehler ist aufgetreten."
-    },
-    "options": {
-      "step": {
-        "init": {
-          "title": "Sizzapp-Optionen",
-          "data": {
-            "poll_interval": "Poll-Intervall (Sekunden, min 15)",
-            "speed_unit": "Geschwindigkeit (kmh/mph)",
-            "coord_precision": "Koordinatenpräzision (0–6)"
-          }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Sizzapp-Optionen",
+        "data": {
+          "poll_interval": "Poll-Intervall (Sekunden, min 15)",
+          "speed_unit": "Geschwindigkeit (kmh/mph)",
+          "coord_precision": "Koordinatenpräzision (0–6)",
+          "stale_minutes": "Stale-Schwelle (Minuten)"
         }
-      },
-      "error": {
-        "poll_too_low": "Bitte mindestens 15 Sekunden einstellen."
       }
+    },
+    "error": {
+      "poll_too_low": "Bitte mindestens 15 Sekunden einstellen."
     }
   }
 }

@@ -17,9 +17,11 @@ from .const import (
     CONF_POLL_INTERVAL,
     CONF_SPEED_UNIT,
     CONF_COORD_PRECISION,
+    CONF_STALE_MINUTES,
     DEFAULT_POLL_INTERVAL,
     DEFAULT_SPEED_UNIT,
     DEFAULT_COORD_PRECISION,
+    DEFAULT_STALE_MINUTES,
     API_URL,
     API_PARAM,
 )
@@ -42,6 +44,9 @@ OPTIONS_SCHEMA = vol.Schema(
         vol.Required(CONF_COORD_PRECISION, default=DEFAULT_COORD_PRECISION): selector.NumberSelector(
             selector.NumberSelectorConfig(min=0, max=6, step=1, mode=selector.NumberSelectorMode.BOX)
         ),
+        vol.Required(CONF_STALE_MINUTES, default=DEFAULT_STALE_MINUTES): selector.NumberSelector(
+            selector.NumberSelectorConfig(min=1, max=60, step=1, mode=selector.NumberSelectorMode.BOX)
+        ),
     }
 )
 
@@ -61,11 +66,10 @@ async def _validate(hass, share_url: str) -> dict[str, Any]:
             resp.raise_for_status()
             data = await resp.json()
     except ClientResponseError as e:
-        # z. B. 5xx oder andere HTTP-Fehler
         raise ValueError("cannot_connect") from e
     except (ClientError, TimeoutError) as e:
         raise ValueError("cannot_connect") from e
-    except Exception as e:  # failsafe
+    except Exception as e:
         raise ValueError("unknown") from e
 
     if not isinstance(data, dict) or "data" not in data:
@@ -114,15 +118,12 @@ class SizzappConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 shared_code, share_url = _normalize_inputs(
                     user_input.get(CONF_SHARED_CODE), user_input.get(CONF_SHARE_URL)
                 )
-                # Grundcheck URL
                 p = urlparse(share_url)
                 if not (p.scheme and p.netloc):
                     raise ValueError("bad_url")
 
-                # Live-Check
                 await _validate(self.hass, share_url)
 
-                # unique_id pro Code/URL
                 uid = shared_code or share_url
                 await self.async_set_unique_id(f"sizzapp::{uid}")
                 self._abort_if_unique_id_configured()
