@@ -47,7 +47,7 @@ class SizzappLocationTracker(SizzappBaseEntity, TrackerEntity):
     def _round(self, val: float | None) -> float | None:
         if val is None:
             return None
-        return round(val, self._coord_precision)
+        return round(val, int(self._coord_precision))
 
     @property
     def latitude(self) -> float | None:

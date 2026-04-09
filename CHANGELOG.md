@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.1.2
+
+**Bugfix:** GPS-Koordinaten wurden nicht angezeigt (Device-Tracker-State "unknown"), weil `coord_precision` als Float aus den Options kam (`6.0`), Pythons `round()` aber einen Integer erwartet. Der daraus resultierende `TypeError` wurde still verschluckt und die Koordinaten als `None` zurückgegeben.
+
 ## v1.1.1
 
 **Bugfix:** `entity_picture` wurde fälschlicherweise auf `DeviceInfo` gesetzt statt auf der Entity selbst – das hat den Platform-Setup abbrechen lassen und dazu geführt, dass keine Entitäten (inkl. Device-Tracker auf der Karte) geladen wurden. Das Bild wird jetzt korrekt nur auf dem Device-Tracker gesetzt.
