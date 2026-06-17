@@ -1,13 +1,13 @@
 {
   "domain": "sizzapp",
   "name": "Sizzapp Location Sharing",
-  "version": "1.1.2",
-  "documentation": "https://github.com/Artaiios/ha_sizzapp",
-  "issue_tracker": "https://github.com/Artaiios/ha_sizzapp/issues",
   "codeowners": ["@Artaiios"],
-  "iot_class": "cloud_polling",
-  "integration_type": "hub",
   "config_flow": true,
+  "documentation": "https://github.com/Artaiios/ha_sizzapp",
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/Artaiios/ha_sizzapp/issues",
+  "loggers": ["custom_components.sizzapp"],
   "requirements": [],
-  "loggers": ["custom_components.sizzapp"]
+  "version": "1.2.0"
 }

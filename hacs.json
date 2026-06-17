@@ -1,6 +1,4 @@
 {
   "name": "Sizzapp Location Sharing",
-  "render_readme": true,
-  "filename": "README.md",
-  "country": "all"
+  "render_readme": true
 }

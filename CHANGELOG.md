@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.2.0
+
+**HACS-Default-Aufnahme**
+
+- GitHub Actions hinzugefügt: HACS-Validierung (`hacs/action`) und `hassfest` laufen jetzt bei jedem Push/PR sowie täglich. Voraussetzung für die Aufnahme in den offiziellen HACS-Store.
+- `manifest.json`: Schlüssel hassfest-konform sortiert (`domain`, `name`, dann alphabetisch).
+- `hacs.json` bereinigt: ungültiger Wert `country: "all"` und der nur für Plugins relevante Schlüssel `filename` entfernt.
+
+Keine funktionalen Änderungen gegenüber v1.1.2.
+
 ## v1.1.2
 
 **Bugfix:** GPS-Koordinaten wurden nicht angezeigt (Device-Tracker-State "unknown"), weil `coord_precision` als Float aus den Options kam (`6.0`), Pythons `round()` aber einen Integer erwartet. Der daraus resultierende `TypeError` wurde still verschluckt und die Koordinaten als `None` zurückgegeben.
