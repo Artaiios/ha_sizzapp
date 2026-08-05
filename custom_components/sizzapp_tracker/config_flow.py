@@ -125,7 +125,7 @@ class SizzappConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 await _validate(self.hass, share_url)
 
                 uid = shared_code or share_url
-                await self.async_set_unique_id(f"sizzapp::{uid}")
+                await self.async_set_unique_id(f"sizzapp_tracker::{uid}")
                 self._abort_if_unique_id_configured()
 
                 return self.async_create_entry(

@@ -16,7 +16,7 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     coordinator: SizzappCoordinator = hass.data[DOMAIN][entry.entry_id]
-    code_hint = (getattr(coordinator, "name", None) or "sizzapp").removeprefix("sizzapp-")
+    code_hint = coordinator.code_hint
     coord_precision = entry.options.get(CONF_COORD_PRECISION, DEFAULT_COORD_PRECISION)
 
     entities: list[SizzappLocationTracker] = []
@@ -37,7 +37,7 @@ class SizzappLocationTracker(SizzappBaseEntity, TrackerEntity):
     def __init__(self, coordinator: SizzappCoordinator, unit_id: int, name: str, code_hint: str, coord_precision: int) -> None:
         super().__init__(coordinator, unit_id, name, code_hint)
         self._coord_precision = coord_precision
-        self._attr_unique_id = f"sizzapp_{code_hint}_{unit_id}_location"
+        self._attr_unique_id = f"sizzapp_tracker_{code_hint}_{unit_id}_location"
 
         # Tracker-Bild als entity_picture
         image_filename = (coordinator.data or {}).get(unit_id, {}).get("image_filename")

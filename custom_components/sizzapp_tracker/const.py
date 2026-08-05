@@ -1,4 +1,7 @@
-DOMAIN = "sizzapp"
+DOMAIN = "sizzapp_tracker"
+# Frühere Domain (vor v1.3.0). Wird nur für die einmalige Migration bestehender
+# Config-Entries / Entitäten / Geräte benötigt – siehe __init__.py.
+LEGACY_DOMAIN = "sizzapp"
 MANUFACTURER = "Sizzapp"
 
 API_URL = "https://api.sizzapp.com/app/location_sharing/info"

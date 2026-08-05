@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.3.0
+
+**Domain-Umbenennung + Brand-Bilder (HACS-Review-Auflagen)**
+
+- **Domain `sizzapp` → `sizzapp_tracker`.** Die bisherige Domain kollidierte mit der bereits im HACS-Katalog vorhandenen Integration `t4bias/ha-sizzapp`. Home Assistant unterscheidet Custom-Integrationen anhand der Domain, sodass beide nicht gleichzeitig installiert werden konnten. Der Komponenten-Ordner heißt jetzt `custom_components/sizzapp_tracker/`.
+- **Automatische Migration für Bestandsnutzer.** Beim ersten Einrichten unter der neuen Domain werden vorhandene Geräte und Entitäten der alten Domain übernommen: Device-Identifier und Entity-`unique_id`s werden von `sizzapp…` auf `sizzapp_tracker…` umgeschrieben und an den neuen Config-Entry gehängt. Verlauf, Anpassungen und Automationen bleiben erhalten. (HA kann einen Config-Entry nicht über die Domain hinweg verschieben – daher muss die Integration einmalig neu hinzugefügt werden; siehe README.)
+- **Brand-Bilder nach `custom_components/sizzapp_tracker/brand/` verschoben.** Seit Home Assistant 2026.3 wird ausschließlich dieser Pfad gelesen; die Icons lagen zuvor im Komponenten-Wurzelverzeichnis und wurden dadurch nicht mehr angezeigt.
+- `code_hint`-Ableitung robuster gemacht (eigene Coordinator-Property statt Ableitung aus dem Coordinator-Namen), damit die Umbenennung die `unique_id`s nicht ungewollt verschiebt.
+
+Keine funktionalen Änderungen an der Datenabfrage gegenüber v1.2.0.
+
 ## v1.2.0
 
 **HACS-Default-Aufnahme**

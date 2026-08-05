@@ -30,6 +30,16 @@ class SizzappCoordinator(DataUpdateCoordinator[Dict[int, Dict[str, Any]]]):
         )
 
     @property
+    def code_hint(self) -> str:
+        """Stabiler Bestandteil der Entity-unique_ids (unabhängig von DOMAIN).
+
+        Entspricht dem Shared Code bzw. 'url', wenn nur eine Share-URL vorliegt.
+        Bewusst NICHT aus dem Coordinator-Namen abgeleitet, damit eine spätere
+        Domain-Umbenennung die unique_ids nicht verschiebt.
+        """
+        return self._shared_code or "url"
+
+    @property
     def api_url(self) -> str:
         if self._share_url:
             return self._share_url

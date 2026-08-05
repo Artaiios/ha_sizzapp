@@ -20,7 +20,7 @@ def _kmh_to_mph(v: float) -> float:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     coordinator: SizzappCoordinator = hass.data[DOMAIN][entry.entry_id]
     speed_unit = entry.options.get(CONF_SPEED_UNIT, DEFAULT_SPEED_UNIT)
-    code_hint = (getattr(coordinator, "name", None) or "sizzapp").removeprefix("sizzapp-")
+    code_hint = coordinator.code_hint
 
     entities: list[SensorEntity] = []
     for unit_id, data in (coordinator.data or {}).items():
@@ -39,7 +39,7 @@ class SizzappSpeedSensor(SizzappBaseEntity, SensorEntity):
     def __init__(self, coordinator: SizzappCoordinator, unit_id: int, name: str, speed_unit: str, code_hint: str) -> None:
         super().__init__(coordinator, unit_id, name, code_hint)
         self._speed_unit = speed_unit
-        self._attr_unique_id = f"sizzapp_{code_hint}_{unit_id}_speed"
+        self._attr_unique_id = f"sizzapp_tracker_{code_hint}_{unit_id}_speed"
 
     @property
     def native_unit_of_measurement(self) -> str:
@@ -65,7 +65,7 @@ class SizzappHeadingSensor(SizzappBaseEntity, SensorEntity):
 
     def __init__(self, coordinator: SizzappCoordinator, unit_id: int, name: str, code_hint: str) -> None:
         super().__init__(coordinator, unit_id, name, code_hint)
-        self._attr_unique_id = f"sizzapp_{code_hint}_{unit_id}_heading"
+        self._attr_unique_id = f"sizzapp_tracker_{code_hint}_{unit_id}_heading"
 
     @property
     def native_value(self) -> int | None:
@@ -86,7 +86,7 @@ class SizzappLastUpdateSensor(SizzappBaseEntity, SensorEntity):
 
     def __init__(self, coordinator: SizzappCoordinator, unit_id: int, name: str, code_hint: str) -> None:
         super().__init__(coordinator, unit_id, name, code_hint)
-        self._attr_unique_id = f"sizzapp_{code_hint}_{unit_id}_last_update"
+        self._attr_unique_id = f"sizzapp_tracker_{code_hint}_{unit_id}_last_update"
 
     @property
     def native_value(self) -> datetime | None:

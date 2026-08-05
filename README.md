@@ -32,7 +32,22 @@ Each configured tracker creates a device with the following entities:
 
 ### Manual
 
-Copy the `custom_components/sizzapp` folder into your Home Assistant `config/custom_components/` directory and restart.
+Copy the `custom_components/sizzapp_tracker` folder into your Home Assistant `config/custom_components/` directory and restart.
+
+### Upgrading from v1.2.x or earlier (domain rename)
+
+Starting with **v1.3.0** the integration domain changed from `sizzapp` to
+`sizzapp_tracker`, because the old domain collided with another integration in
+the HACS catalog. Home Assistant cannot move an existing configuration across
+domains automatically, so after updating:
+
+1. Update to v1.3.0 via HACS and restart Home Assistant.
+2. Go to **Settings → Devices & Services** and **add the integration again**
+   (it now appears under the new domain), using the same share link/code.
+
+Your existing devices, entities, history and automations are carried over
+automatically on that first setup — the integration re-links them to the new
+domain, so entity IDs and recorded history are preserved.
 
 ## Configuration
 
