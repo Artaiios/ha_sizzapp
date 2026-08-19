@@ -77,35 +77,28 @@ async def _validate(hass, share_url: str) -> dict[str, Any]:
     return data
 
 
-def _normalize_inputs(shared_code_raw: str | None, share_url_raw: str | None) -> tuple[str, str]:
-    """Nimmt entweder Code oder vollständige URL entgegen und liefert (code, url)."""
-    shared_code = (shared_code_raw or "").strip()
-    share_url = (share_url_raw or "").strip()
-
-    def _try_extract_code_from_url(val: str) -> str | None:
-        try:
-            p = urlparse(val)
-            if p.scheme and p.netloc:
-                qs = parse_qs(p.query)
-                code = qs.get(API_PARAM, [None])[0]
-                return code
-        except Exception:
-            pass
+def _extract_code(val: str | None) -> str | None:
+    """Extrahiert den Shared-Code aus reinem Code, Website-URL (/location/<code>) oder API-URL."""
+    val = (val or "").strip()
+    if not val:
         return None
+    p = urlparse(val)
+    if p.scheme and p.netloc:
+        code = parse_qs(p.query).get(API_PARAM, [None])[0]  # API-URL: ?shared_code=...
+        if code:
+            return code.strip()
+        segments = [s for s in p.path.split("/") if s]       # Website-URL: .../location/<code>
+        return segments[-1].strip() if segments else None
+    return val  # kein URL-Schema -> als reiner Code behandeln
 
-    if not share_url:
-        maybe_code = _try_extract_code_from_url(shared_code)
-        if maybe_code:
-            shared_code = maybe_code
-            share_url = f"{API_URL}?{API_PARAM}={shared_code}"
-        elif shared_code:
-            share_url = f"{API_URL}?{API_PARAM}={shared_code}"
-    else:
-        code_from_url = _try_extract_code_from_url(share_url)
-        if code_from_url:
-            shared_code = shared_code or code_from_url
 
-    return shared_code, share_url
+def _normalize_inputs(shared_code_raw: str | None, share_url_raw: str | None) -> tuple[str, str]:
+    """Nimmt Code ODER URL (beliebiges Feld) und liefert (code, api_url)."""
+    raw = (share_url_raw or "").strip() or (shared_code_raw or "").strip()
+    code = _extract_code(raw)
+    if not code:
+        return "", ""
+    return code, f"{API_URL}?{API_PARAM}={code}"
 
 
 class SizzappConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):

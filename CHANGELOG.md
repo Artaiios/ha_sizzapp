@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.3.2
+
+**Bugfix:** Das Hinzufügen über die **Share-URL** (z. B. `https://sizzapp.com/location/<code>`) schlug mit „sizzapp nicht erreichbar" fehl, während der reine Shared-Code funktionierte. Ursache: Der Code wurde nur aus dem Query-String (`?shared_code=`) gelesen, nicht aus dem URL-Pfad. Die URL-Erkennung zieht den Code jetzt auch aus dem Pfad und baut in allen Fällen die korrekte API-URL (Website-URL, API-URL, reiner Code, mit/ohne `www`, trailing slash).
+
 ## v1.3.0
 
 **Domain-Umbenennung + Brand-Bilder (HACS-Review-Auflagen)**

@@ -9,5 +9,5 @@
   "issue_tracker": "https://github.com/Artaiios/ha_sizzapp/issues",
   "loggers": ["custom_components.sizzapp_tracker"],
   "requirements": [],
-  "version": "1.3.1"
+  "version": "1.3.2"
 }
