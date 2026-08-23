@@ -19,6 +19,7 @@ from .const import (
     CONF_COORD_PRECISION,
     CONF_STALE_MINUTES,
     DEFAULT_POLL_INTERVAL,
+    MIN_POLL_INTERVAL,
     DEFAULT_SPEED_UNIT,
     DEFAULT_COORD_PRECISION,
     DEFAULT_STALE_MINUTES,
@@ -36,7 +37,7 @@ USER_SCHEMA = vol.Schema(
 OPTIONS_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_POLL_INTERVAL, default=DEFAULT_POLL_INTERVAL): selector.NumberSelector(
-            selector.NumberSelectorConfig(min=15, max=3600, step=5, mode=selector.NumberSelectorMode.BOX)
+            selector.NumberSelectorConfig(min=MIN_POLL_INTERVAL, max=3600, step=5, mode=selector.NumberSelectorMode.BOX)
         ),
         vol.Required(CONF_SPEED_UNIT, default=DEFAULT_SPEED_UNIT): selector.SelectSelector(
             selector.SelectSelectorConfig(options=["kmh", "mph"], mode=selector.SelectSelectorMode.DROPDOWN)
@@ -152,7 +153,7 @@ class SizzappOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             try:
                 poll = int(user_input.get(CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL))
-                if poll < 15:
+                if poll < MIN_POLL_INTERVAL:
                     errors["base"] = "poll_too_low"
                 else:
                     return self.async_create_entry(title="", data=user_input)

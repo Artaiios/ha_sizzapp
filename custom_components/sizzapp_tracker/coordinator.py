@@ -5,6 +5,7 @@ import asyncio
 import logging
 from urllib.parse import urlencode
 
+from aiohttp import ClientResponseError
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -60,9 +61,19 @@ class SizzappCoordinator(DataUpdateCoordinator[Dict[int, Dict[str, Any]]]):
                 payload = await resp.json()
 
         except asyncio.TimeoutError as err:
-            raise UpdateFailed(f"timeout: {err}") from err
+            # Keine Fehlerdetails weiterreichen – die Request-URL enthält den
+            # Shared-Code, der sonst über UpdateFailed im Log landen würde.
+            raise UpdateFailed("timeout") from err
+        except ClientResponseError as err:
+            # str(ClientResponseError) enthält die volle URL inkl. shared_code.
+            # Nur den Status nennen, niemals die URL.
+            raise UpdateFailed(f"http_error_{err.status}") from err
+        except UpdateFailed:
+            raise
         except Exception as err:  # noqa: BLE001
-            raise UpdateFailed(err) from err
+            # Fehlertyp statt str(err) – letzteres kann die URL mit dem
+            # Shared-Code enthalten (z. B. bei Verbindungsfehlern).
+            raise UpdateFailed(f"update_error: {type(err).__name__}") from err
 
         if not isinstance(payload, dict) or "data" not in payload:
             raise UpdateFailed("unexpected_response")

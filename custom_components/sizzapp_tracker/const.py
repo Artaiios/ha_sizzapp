@@ -16,6 +16,7 @@ CONF_COORD_PRECISION = "coord_precision"  # int (0..6)
 CONF_STALE_MINUTES = "stale_minutes"
 
 DEFAULT_POLL_INTERVAL = 60  # Sekunden
+MIN_POLL_INTERVAL = 30      # Sekunden – schont die öffentliche Sizzapp-API
 DEFAULT_SPEED_UNIT = "kmh"
 DEFAULT_COORD_PRECISION = 6
 DEFAULT_STALE_MINUTES = 5

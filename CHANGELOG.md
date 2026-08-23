@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.3.3
+
+**Sicherheit & Härtung (HACS-Review-Auflagen)**
+
+- **Shared-Code nicht mehr im Log.** Der Shared-Code ist das einzige Geheimnis, das den Standort-Feed schützt. Bei einer Nicht-2xx-Antwort der API landete er bisher über die stringifizierte `ClientResponseError` (volle Request-URL inkl. `?shared_code=…`) in `home-assistant.log`. Fehler werden jetzt ohne URL gemeldet – nur Status bzw. Fehlertyp.
+- **Diagnose-Download redigiert.** `diagnostics.py` entfernt jetzt `shared_code` und `share_url` (via `async_redact_data`), statt den Code unredigiert bzw. nur gekürzt auszugeben.
+- **Mindest-Poll-Intervall von 15 s auf 30 s angehoben**, um die öffentliche Sizzapp-API zu schonen (Standard bleibt 60 s). Angepasst in Config-Flow, Validierung und Übersetzungen.
+- **Doppeltes Logo entfernt.** `brand/logo.png` / `logo@2x.png` waren byte-identische Kopien der Icons und wurden entfernt; Home Assistant nutzt das Icon.
+
 ## v1.3.2
 
 **Bugfix:** Das Hinzufügen über die **Share-URL** (z. B. `https://sizzapp.com/location/<code>`) schlug mit „sizzapp nicht erreichbar" fehl, während der reine Shared-Code funktionierte. Ursache: Der Code wurde nur aus dem Query-String (`?shared_code=`) gelesen, nicht aus dem URL-Pfad. Die URL-Erkennung zieht den Code jetzt auch aus dem Pfad und baut in allen Fällen die korrekte API-URL (Website-URL, API-URL, reiner Code, mit/ohne `www`, trailing slash).
