@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import logging
 
 from homeassistant.config_entries import ConfigEntry
@@ -20,9 +21,39 @@ from .coordinator import SizzappCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-# Präfixe der Entity-unique_ids vor/ab v1.3.0.
-_LEGACY_UID_PREFIX = f"{LEGACY_DOMAIN}_"      # "sizzapp_"
-_NEW_UID_PREFIX = f"{DOMAIN}_"                # "sizzapp_tracker_"
+
+def _entry_unique_id(uid_source: str) -> str:
+    """Nicht-umkehrbare Entry-unique_id aus Code/URL (muss config_flow spiegeln)."""
+    digest = hashlib.sha256((uid_source or "").encode("utf-8")).hexdigest()
+    return f"sizzapp_tracker::{digest}"
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Config-Entry-Migration.
+
+    v1.3.4 (minor_version 2): Die Entry-unique_id war bis dahin der rohe
+    Share-Code (bzw. die Share-URL) und wurde damit im Klartext nach
+    .storage/core.config_entries persistiert. Wir ersetzen sie durch einen
+    sha256-Hash. Idempotent und versions-gegatet.
+    """
+    if entry.version == 1 and entry.minor_version < 2:
+        uid_source = entry.data.get(CONF_SHARED_CODE, "") or entry.data.get(CONF_SHARE_URL, "") or ""
+        new_uid = _entry_unique_id(uid_source)
+
+        if entry.unique_id == new_uid:
+            hass.config_entries.async_update_entry(entry, minor_version=2)
+        else:
+            existing = hass.config_entries.async_entry_for_domain_unique_id(DOMAIN, new_uid)
+            if existing is None or existing.entry_id == entry.entry_id:
+                hass.config_entries.async_update_entry(entry, unique_id=new_uid, minor_version=2)
+            else:
+                # Ziel-uid schon von einem anderen Entry belegt (zwei Entries mit
+                # gleichem Code). Trotzdem den Klartext-Code aus der uid entfernen
+                # – mit entry_id gesalzen, damit die uid kollisionsfrei bleibt.
+                salted = _entry_unique_id(f"{uid_source}#{entry.entry_id}")
+                hass.config_entries.async_update_entry(entry, unique_id=salted, minor_version=2)
+
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -38,10 +69,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
 
-    # Bestehende Nutzer der alten Domain "sizzapp" übernehmen: verwaiste Geräte-
-    # und Entitäts-Registry-Einträge auf die neue Domain umhängen, BEVOR die
-    # Plattformen ihre Entitäten anlegen (sonst entstehen Duplikate).
-    _async_migrate_legacy_registrations(hass, entry, coordinator.code_hint)
+    # Bestehende Nutzer übernehmen, BEVOR die Plattformen ihre Entitäten anlegen
+    # (sonst entstehen Duplikate). Deckt zwei Übergänge ab:
+    #   A) uralte Domain "sizzapp" -> "sizzapp_tracker" (+ Token statt Code)
+    #   B) v1.3.0–v1.3.3: Klartext-Code im unique_id -> Token
+    _async_migrate_registry(hass, entry, coordinator.code_hint, coordinator.code_token)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
@@ -51,37 +83,64 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
-def _async_migrate_legacy_registrations(
-    hass: HomeAssistant, entry: ConfigEntry, code_hint: str
+def _async_migrate_registry(
+    hass: HomeAssistant, entry: ConfigEntry, code_hint: str, code_token: str
 ) -> None:
-    """Einmalige Migration von der alten Domain 'sizzapp' auf 'sizzapp_tracker'.
+    """Registry-Migration der Geräte/Entitäten dieser Instanz.
 
-    Home Assistant kann einen Config-Entry nicht über die Domain hinweg
-    verschieben. Wenn ein Nutzer die Integration unter der neuen Domain neu
-    hinzufügt, hängen wir hier seine bisherigen Geräte und Entitäten (aus der
-    alten Domain) an den neuen Entry um und schreiben die unique_ids/Identifier
-    um – so bleiben Verlauf, Anpassungen und Automationen erhalten.
+    Der Share-Code (code_hint) ist ein Geheimnis und darf nicht in
+    persistierten unique_ids stehen. Ab v1.3.4 verwenden unique_ids den
+    nicht-umkehrbaren code_token (sha256-Präfix). Bestandsnutzer werden hier
+    einmalig übernommen, ohne Verlust von Verlauf/Anpassungen/Automationen.
 
-    Idempotent: bereits migrierte Einträge werden übersprungen.
+    Idempotent: bereits migrierte Einträge (Token bereits im unique_id) werden
+    nicht erneut angefasst.
     """
     ent_reg = er.async_get(hass)
     dev_reg = dr.async_get(hass)
 
-    # unit_ids dieser Instanz (aus den aktuellen Coordinator-Daten). Nur diese
-    # Geräte/Entitäten gehören uns – wichtig, wenn mehrere Instanzen existieren.
-    known_unit_ids = {str(uid) for uid in (hass.data[DOMAIN][entry.entry_id].data or {})}
-    # Nur die unique_ids dieser Instanz beginnen mit "sizzapp_<code_hint>_".
-    instance_uid_prefix = f"{_LEGACY_UID_PREFIX}{code_hint}_"
+    token_prefix = f"{DOMAIN}_{code_token}_"        # Ziel- / Fall-C-Präfix
+    _migrate_legacy_domain(hass, entry, code_hint, token_prefix, ent_reg, dev_reg)
+    _migrate_plaintext_uid(hass, entry, code_hint, token_prefix, ent_reg)
 
-    # --- Geräte: identifiers (LEGACY_DOMAIN, unit_id) -> (DOMAIN, unit_id) ---
-    # Map unit_id -> (neue) device_id, um Entitäten anschließend korrekt anzuhängen.
+
+def _migrate_legacy_domain(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    code_hint: str,
+    token_prefix: str,
+    ent_reg,
+    dev_reg,
+) -> None:
+    """Fall A: uralte Domain 'sizzapp' -> 'sizzapp_tracker' (+ Token statt Code).
+
+    Geräte-Identifier (sizzapp, unit) -> (sizzapp_tracker, unit) und Entitäten
+    per async_update_entity_platform (Plattformwechsel) direkt auf die
+    Token-unique_id umschreiben (keine Klartext-Zwischenstufe).
+    """
+    legacy_prefix = f"{LEGACY_DOMAIN}_{code_hint}_"  # "sizzapp_<code>_"
+
+    # Instanz-Isolation für Geräte über die unit_ids der Legacy-ENTITÄTEN dieser
+    # Instanz (deren unique_id mit legacy_prefix beginnt) – NICHT über die aktuell
+    # online Units. Sonst blieben Geräte offline-Units unmigriert, während ihre
+    # Entitäten schon umziehen (verwaiste/doppelte Geräte).
+    instance_unit_ids: set[str] = set()
+    for reg_entry in list(ent_reg.entities.values()):
+        if reg_entry.platform == LEGACY_DOMAIN and reg_entry.unique_id.startswith(legacy_prefix):
+            rest = reg_entry.unique_id[len(legacy_prefix):]
+            uid = rest.split("_", 1)[0] if rest else None
+            if uid:
+                instance_unit_ids.add(uid)
+
+    # --- Geräte ---
     unit_to_device: dict[str, str] = {}
     for device in list(dev_reg.devices.values()):
         legacy_ids = {i for i in device.identifiers if i[0] == LEGACY_DOMAIN}
         if not legacy_ids:
             continue
-        # Nur Geräte dieser Instanz (unit_id muss zu den aktuellen Daten passen).
-        if not any(unit_id in known_unit_ids for (_dom, unit_id) in legacy_ids):
+        # Nur Geräte, deren unit_id zu einer Legacy-Entität dieser Instanz gehört
+        # (online ODER offline) – so bleiben Gerät und Entität konsistent.
+        if not any(unit_id in instance_unit_ids for (_dom, unit_id) in legacy_ids):
             continue
 
         new_identifiers = {
@@ -96,32 +155,26 @@ def _async_migrate_legacy_registrations(
             )
             for _dom, unit_id in legacy_ids:
                 unit_to_device[unit_id] = device.id
-            _LOGGER.info(
-                "Migrated Sizzapp device %s to new domain '%s'", device.id, DOMAIN
-            )
+            _LOGGER.info("Migrated Sizzapp device %s to new domain '%s'", device.id, DOMAIN)
         except Exception:  # noqa: BLE001 – Migration darf den Setup nie blockieren
             _LOGGER.exception("Could not migrate Sizzapp device %s", device.id)
 
-    # --- Entitäten: platform 'sizzapp' + unique_id-Präfix -> neu umschreiben ---
+    # --- Entitäten ---
     for reg_entry in list(ent_reg.entities.values()):
         if reg_entry.platform != LEGACY_DOMAIN:
             continue
-        if not reg_entry.unique_id.startswith(instance_uid_prefix):
+        if not reg_entry.unique_id.startswith(legacy_prefix):
             continue
 
-        new_unique_id = _NEW_UID_PREFIX + reg_entry.unique_id[len(_LEGACY_UID_PREFIX):]
-        # Kollisionsschutz: existiert das Ziel bereits, alte Zeile in Ruhe lassen.
+        # "<unit_id>_<key>" hinter dem Legacy-Präfix; Ziel direkt mit Token.
+        rest = reg_entry.unique_id[len(legacy_prefix):]
+        new_unique_id = token_prefix + rest
+
         if ent_reg.async_get_entity_id(reg_entry.domain, DOMAIN, new_unique_id):
-            continue
+            continue  # Ziel existiert bereits -> alte Zeile in Ruhe lassen
 
-        # unit_id aus "sizzapp_<code_hint>_<unit_id>_<key>" extrahieren, um die
-        # Entität an das passende (bereits migrierte) Gerät zu hängen.
-        rest = reg_entry.unique_id[len(instance_uid_prefix):]
         unit_id = rest.split("_", 1)[0] if rest else None
         new_device_id = unit_to_device.get(unit_id)
-
-        # new_device_id nur setzen, wenn wir wirklich ein Gerät haben – None würde
-        # die Entität sonst von ihrem Gerät lösen (statt es unverändert zu lassen).
         extra: dict[str, str] = {}
         if new_device_id is not None:
             extra["new_device_id"] = new_device_id
@@ -134,16 +187,51 @@ def _async_migrate_legacy_registrations(
                 new_config_entry_id=entry.entry_id,
                 **extra,
             )
-            _LOGGER.info(
-                "Migrated Sizzapp entity %s (%s -> %s)",
-                reg_entry.entity_id,
-                reg_entry.unique_id,
-                new_unique_id,
-            )
+            # NUR entity_id loggen – unique_ids enthalten das Geheimnis nicht mehr,
+            # aber die entity_id ist ohnehin der unbedenklichste Bezeichner.
+            _LOGGER.info("Migrated Sizzapp entity %s to new domain '%s'", reg_entry.entity_id, DOMAIN)
         except Exception:  # noqa: BLE001
-            _LOGGER.exception(
-                "Could not migrate Sizzapp entity %s", reg_entry.entity_id
-            )
+            _LOGGER.exception("Could not migrate Sizzapp entity %s", reg_entry.entity_id)
+
+
+def _migrate_plaintext_uid(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    code_hint: str,
+    token_prefix: str,
+    ent_reg,
+) -> None:
+    """Fall B: v1.3.0–v1.3.3 – Klartext-Code im unique_id -> Token.
+
+    Gleiche Domain und gleiches Gerät; nur die unique_id wird umgeschrieben
+    (async_update_entity, kein Plattform-/Device-Wechsel nötig).
+    """
+    plain_prefix = f"{DOMAIN}_{code_hint}_"  # "sizzapp_tracker_<code>_"
+
+    # Fall C (bereits Token) fällt hier automatisch raus: token_prefix != plain_prefix
+    # außer im pathologischen Fixpunkt (code == sha256(code)[:16]) – dann ist
+    # ohnehin nichts zu tun.
+    if plain_prefix == token_prefix:
+        return
+
+    for reg_entry in list(ent_reg.entities.values()):
+        if reg_entry.platform != DOMAIN:
+            continue
+        if reg_entry.config_entry_id != entry.entry_id:
+            continue  # Instanz-Isolation
+        if not reg_entry.unique_id.startswith(plain_prefix):
+            continue
+
+        new_unique_id = token_prefix + reg_entry.unique_id[len(plain_prefix):]
+
+        if ent_reg.async_get_entity_id(reg_entry.domain, DOMAIN, new_unique_id):
+            continue  # Ziel existiert bereits
+
+        try:
+            ent_reg.async_update_entity(reg_entry.entity_id, new_unique_id=new_unique_id)
+            _LOGGER.info("Rekeyed Sizzapp entity %s to hashed unique_id", reg_entry.entity_id)
+        except Exception:  # noqa: BLE001
+            _LOGGER.exception("Could not rekey Sizzapp entity %s", reg_entry.entity_id)
 
 
 async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:

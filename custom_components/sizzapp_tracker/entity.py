@@ -12,11 +12,11 @@ class SizzappBaseEntity(CoordinatorEntity[SizzappCoordinator]):
 
     _attr_has_entity_name = True
 
-    def __init__(self, coordinator: SizzappCoordinator, unit_id: int, name: str, code_hint: str) -> None:
+    def __init__(self, coordinator: SizzappCoordinator, unit_id: int, name: str, code_token: str) -> None:
         super().__init__(coordinator)
         self._unit_id = unit_id
         self._devname = name
-        self._code_hint = code_hint
+        self._code_token = code_token
 
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, str(unit_id))},

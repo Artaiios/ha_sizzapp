@@ -1,4 +1,5 @@
 from __future__ import annotations
+import hashlib
 from typing import Any
 from urllib.parse import urlparse, parse_qs
 
@@ -104,6 +105,7 @@ def _normalize_inputs(shared_code_raw: str | None, share_url_raw: str | None) ->
 
 class SizzappConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
+    MINOR_VERSION = 2  # v1.3.4: Entry-unique_id ist jetzt ein Hash (kein Klartext-Code)
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         errors: dict[str, str] = {}
@@ -118,8 +120,12 @@ class SizzappConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
                 await _validate(self.hass, share_url)
 
-                uid = shared_code or share_url
-                await self.async_set_unique_id(f"sizzapp_tracker::{uid}")
+                # Entry-unique_id aus einem nicht-umkehrbaren Hash bilden – der
+                # rohe Share-Code darf nicht in .storage/core.config_entries
+                # persistiert werden. (Muss mit async_migrate_entry übereinstimmen.)
+                uid_source = shared_code or share_url
+                uid_hash = hashlib.sha256(uid_source.encode("utf-8")).hexdigest()
+                await self.async_set_unique_id(f"sizzapp_tracker::{uid_hash}")
                 self._abort_if_unique_id_configured()
 
                 return self.async_create_entry(

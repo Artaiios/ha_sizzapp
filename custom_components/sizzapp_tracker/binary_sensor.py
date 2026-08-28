@@ -13,14 +13,14 @@ from .entity import SizzappBaseEntity
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     coordinator: SizzappCoordinator = hass.data[DOMAIN][entry.entry_id]
-    code_hint = coordinator.code_hint
+    code_token = coordinator.code_token
     stale_minutes = entry.options.get(CONF_STALE_MINUTES, DEFAULT_STALE_MINUTES)
 
     entities: list[BinarySensorEntity] = []
     for unit_id, data in (coordinator.data or {}).items():
         name = (data.get("name") or f"Unit {unit_id}").strip()
-        entities.append(SizzappTripSensor(coordinator, unit_id, name, code_hint))
-        entities.append(SizzappStaleSensor(coordinator, unit_id, name, code_hint, stale_minutes))
+        entities.append(SizzappTripSensor(coordinator, unit_id, name, code_token))
+        entities.append(SizzappStaleSensor(coordinator, unit_id, name, code_token, stale_minutes))
 
     async_add_entities(entities)
 
@@ -30,9 +30,9 @@ class SizzappTripSensor(SizzappBaseEntity, BinarySensorEntity):
     _attr_device_class = BinarySensorDeviceClass.MOTION
     _attr_icon = "mdi:car"
 
-    def __init__(self, coordinator: SizzappCoordinator, unit_id: int, name: str, code_hint: str) -> None:
-        super().__init__(coordinator, unit_id, name, code_hint)
-        self._attr_unique_id = f"sizzapp_tracker_{code_hint}_{unit_id}_in_trip"
+    def __init__(self, coordinator: SizzappCoordinator, unit_id: int, name: str, code_token: str) -> None:
+        super().__init__(coordinator, unit_id, name, code_token)
+        self._attr_unique_id = f"sizzapp_tracker_{code_token}_{unit_id}_in_trip"
 
     @property
     def is_on(self) -> bool | None:
@@ -52,10 +52,10 @@ class SizzappStaleSensor(SizzappBaseEntity, BinarySensorEntity):
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
     _attr_icon = "mdi:clock-alert-outline"
 
-    def __init__(self, coordinator: SizzappCoordinator, unit_id: int, name: str, code_hint: str, stale_minutes: int) -> None:
-        super().__init__(coordinator, unit_id, name, code_hint)
+    def __init__(self, coordinator: SizzappCoordinator, unit_id: int, name: str, code_token: str, stale_minutes: int) -> None:
+        super().__init__(coordinator, unit_id, name, code_token)
         self._stale_minutes = stale_minutes
-        self._attr_unique_id = f"sizzapp_tracker_{code_hint}_{unit_id}_stale"
+        self._attr_unique_id = f"sizzapp_tracker_{code_token}_{unit_id}_stale"
 
     @property
     def is_on(self) -> bool | None:

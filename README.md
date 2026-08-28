@@ -59,7 +59,7 @@ domain, so entity IDs and recorded history are preserved.
 
 After setup, you can configure:
 
-- **Poll interval** — how often to fetch new data (default: 60s, minimum: 15s)
+- **Poll interval** — how often to fetch new data (default: 60s, minimum: 30s)
 - **Speed unit** — km/h or mph
 - **Coordinate precision** — decimal places for GPS coordinates (0–6, default: 6). Reducing this can be a simple privacy measure if you share your HA dashboard.
 - **Stale threshold** — minutes without a tracker update before the Stale sensor turns on (default: 5)

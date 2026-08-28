@@ -2,6 +2,7 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Any, Dict, List
 import asyncio
+import hashlib
 import logging
 from urllib.parse import urlencode
 
@@ -26,19 +27,33 @@ class SizzappCoordinator(DataUpdateCoordinator[Dict[int, Dict[str, Any]]]):
         super().__init__(
             hass,
             _LOGGER,
-            name=f"{DOMAIN}-{self._shared_code or 'url'}",
+            # WICHTIG: keinen Klartext-Code in den Namen – DataUpdateCoordinator
+            # loggt self.name bei jedem Poll (DEBUG) und bei Fehlern (ERROR).
+            # code_token ist der nicht-umkehrbare Hash-Bestandteil.
+            name=f"{DOMAIN}-{self.code_token}",
             update_interval=timedelta(seconds=poll_interval),
         )
 
     @property
     def code_hint(self) -> str:
-        """Stabiler Bestandteil der Entity-unique_ids (unabhängig von DOMAIN).
+        """Klartext-Share-Code (bzw. 'url'). NUR intern für die Migration.
 
-        Entspricht dem Shared Code bzw. 'url', wenn nur eine Share-URL vorliegt.
-        Bewusst NICHT aus dem Coordinator-Namen abgeleitet, damit eine spätere
-        Domain-Umbenennung die unique_ids nicht verschiebt.
+        Enthält das Geheimnis und darf niemals in unique_ids, Logs, Namen oder
+        Diagnose gelangen. Für persistierte Bezeichner stattdessen code_token.
         """
         return self._shared_code or "url"
+
+    @property
+    def code_token(self) -> str:
+        """Nicht-umkehrbarer, stabiler Bestandteil der Entity-unique_ids.
+
+        sha256-Hash-Präfix des Share-Codes (bzw. 'url', wenn nur eine URL
+        vorliegt). Ersetzt seit v1.3.4 den Klartext-Code in allen persistierten
+        Bezeichnern, damit das Geheimnis nicht auf Platte / in Logs landet.
+        """
+        if not self._shared_code:
+            return "url"
+        return hashlib.sha256(self._shared_code.encode("utf-8")).hexdigest()[:16]
 
     @property
     def api_url(self) -> str:

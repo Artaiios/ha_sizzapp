@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.3.4
+
+**Sicherheit: Share-Code vollständig aus Logs und persistierten Bezeichnern entfernt (HACS-Review-Auflagen)**
+
+- **Coordinator-Name enthält keinen Klartext-Code mehr.** Home Assistant loggt den Coordinator-Namen bei jedem Poll (DEBUG) und bei Fehlern (ERROR). Der Name war `sizzapp_tracker-<code>` und schrieb den Share-Code damit fortlaufend in `home-assistant.log`. Er verwendet jetzt den nicht-umkehrbaren `code_token` (sha256-Präfix).
+- **Migration loggt keine unique_ids mehr.** Der Migrations-Log gab pro Entität die alte und neue `unique_id` (mit Code) auf INFO aus – jetzt nur noch die unbedenkliche `entity_id`.
+- **Share-Code nicht mehr in persistierten unique_ids.** Entity-unique_ids und die Config-Entry-unique_id enthielten den rohen Code und landeten so in `.storage/`. Sie verwenden jetzt einen sha256-Hash. Bestehende Installationen werden beim Update automatisch migriert (Entitäts-unique_ids und Config-Entry-unique_id werden umgeschrieben; Verlauf, Anpassungen und Automationen bleiben erhalten) – dies deckt sowohl v1.3.0–v1.3.3 als auch die uralte `sizzapp`-Domain ab.
+- **`hacs.json`:** Mindest-HA-Version `2026.3.0` deklariert (nötig für die mitgelieferten `brand/`-Bilder und die verwendeten Registry-APIs).
+- **README:** Poll-Minimum von 15 s auf 30 s korrigiert (stimmte nicht mehr mit Code/Strings überein).
+
 ## v1.3.3
 
 **Sicherheit & Härtung (HACS-Review-Auflagen)**
