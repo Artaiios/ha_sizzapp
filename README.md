@@ -1,83 +1,114 @@
 # Sizzapp Location Sharing for Home Assistant
 
-[![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/)
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![GitHub Release](https://img.shields.io/github/v/release/Artaiios/ha_sizzapp)](https://github.com/Artaiios/ha_sizzapp/releases)
+[![HACS Default](https://img.shields.io/badge/HACS-Default-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/default)
+[![Add to HACS](https://img.shields.io/badge/Add%20to-HACS-41BDF5.svg?style=for-the-badge)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Artaiios&repository=ha_sizzapp&category=integration)
+[![GitHub Release](https://img.shields.io/github/v/release/Artaiios/ha_sizzapp?style=for-the-badge)](https://github.com/Artaiios/ha_sizzapp/releases)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg?style=for-the-badge)](https://www.gnu.org/licenses/gpl-3.0)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/patzeller)
 
-Custom integration for [Home Assistant](https://www.home-assistant.io/) that pulls real-time location and status data from [Sizzapp](https://www.sizzapp.com/) GPS trackers via the sharing API.
+Custom integration for [Home Assistant](https://www.home-assistant.io/) that pulls real-time location and status data from [Sizzapp](https://www.sizzapp.com/) GPS trackers via the public sharing API.
 
-No Sizzapp account credentials required — just a sharing link or code.
+**No Sizzapp account credentials required — just a sharing link or code.** Each tracker becomes a device on your map with its own sensors, so you can build automations around where your vehicles are and whether they are moving.
 
-## What you get
+## ✨ Features
 
-Each configured tracker creates a device with the following entities:
+- 🛰️ **GPS device tracker** — live position on the Home Assistant map
+- 🖼️ **Vehicle image** — the picture from the Sizzapp app shows up as the entity picture
+- 🚗 **Trip detection** — a binary sensor tells you when the vehicle is moving
+- 🏎️ **Speed & heading** — current speed (km/h or mph) and direction of travel
+- 🕒 **Last-update timestamp** — as a first-class sensor, great for "hasn't reported in X minutes" automations
+- 💤 **Stale detection** — a binary sensor that turns on when a tracker goes quiet
+- 🔀 **Multiple trackers** — add one instance per share link; each gets its own device
+- 🔒 **Privacy-first** — uses only the public sharing API; the share code is never written to logs or persisted in clear text, and coordinate precision is configurable
 
-| Entity | Type | Description |
-|---|---|---|
-| **Location** | `device_tracker` | GPS position on the HA map, with vehicle image from Sizzapp |
-| **Speed** | `sensor` | Current speed (km/h or mph, configurable) |
-| **Heading** | `sensor` | Direction of travel in degrees |
-| **Last Update** | `sensor` | Timestamp of the last tracker report — useful for automations |
-| **In Trip** | `binary_sensor` | Whether the vehicle is currently moving |
-| **Stale** | `binary_sensor` | Turns on when the tracker hasn't reported in for a while (threshold configurable) |
+## 📸 Screenshots
 
-## Installation
+**Every tracker as its own device, with live sensors and the vehicle image:**
+
+![Trackers with sensors and vehicle images](docs/sensors.png)
+
+**Device detail — device info, sensors and an activity timeline:**
+
+![Device detail with sensors and activity](docs/device.png)
+
+## 📋 Requirements
+
+- Home Assistant **2026.3** or newer
+- [HACS](https://hacs.xyz/) installed
+- A Sizzapp sharing link or shared code (created in the Sizzapp app)
+
+## 📥 Installation
 
 ### Via HACS (recommended)
 
-1. Open HACS → Integrations → three-dot menu → **Custom repositories**
-2. Add `https://github.com/Artaiios/ha_sizzapp` with category **Integration**
-3. Install the integration and restart Home Assistant
-4. Go to Settings → Devices & Services → **Add Integration** → search for **Sizzapp Location Sharing**
+[![Open your Home Assistant instance and open this repository inside HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Artaiios&repository=ha_sizzapp&category=integration)
+
+1. Click the button above, **or** open HACS → search for **Sizzapp Location Sharing**.
+2. Install the integration and restart Home Assistant.
+3. Go to **Settings → Devices & Services → Add Integration** and search for **Sizzapp Location Sharing**.
 
 ### Manual
 
 Copy the `custom_components/sizzapp_tracker` folder into your Home Assistant `config/custom_components/` directory and restart.
 
-### Upgrading from v1.2.x or earlier (domain rename)
+## ⚙️ Configuration
 
-Starting with **v1.3.0** the integration domain changed from `sizzapp` to
-`sizzapp_tracker`, because the old domain collided with another integration in
-the HACS catalog. Home Assistant cannot move an existing configuration across
-domains automatically, so after updating:
-
-1. Update to v1.3.0 via HACS and restart Home Assistant.
-2. Go to **Settings → Devices & Services** and **add the integration again**
-   (it now appears under the new domain), using the same share link/code.
-
-Your existing devices, entities, history and automations are carried over
-automatically on that first setup — the integration re-links them to the new
-domain, so entity IDs and recorded history are preserved.
-
-## Configuration
-
-1. In the Sizzapp app on your phone, create a tracking/sharing link (or copy an existing one)
-2. Paste the full URL **or** just the sharing code into the integration setup — both work
-3. Done!
+1. In the Sizzapp app on your phone, create a tracking/sharing link (or copy an existing one).
+2. In Home Assistant, add the integration and paste the full share URL **or** just the sharing code — both work.
+3. Done! The tracker appears as a device with its entities.
 
 ### Options
 
-After setup, you can configure:
+After setup, open the integration's **Configure** dialog to adjust:
 
-- **Poll interval** — how often to fetch new data (default: 60s, minimum: 30s)
+- **Poll interval** — how often to fetch new data (default: 60 s, minimum: 30 s)
 - **Speed unit** — km/h or mph
-- **Coordinate precision** — decimal places for GPS coordinates (0–6, default: 6). Reducing this can be a simple privacy measure if you share your HA dashboard.
-- **Stale threshold** — minutes without a tracker update before the Stale sensor turns on (default: 5)
+- **Coordinate precision** — decimal places for GPS coordinates (0–6, default: 6). Lowering this is a simple privacy measure if you share your dashboard.
+- **Stale threshold** — minutes without a tracker update before the **Stale** sensor turns on (default: 5)
 
-All options take effect immediately, no restart needed.
+All options take effect immediately — no restart needed.
 
-## Multiple trackers
+## 🧩 Entities
 
-You can add multiple integration instances for different trackers — each creates its own device. Tested with up to three Sizzapp trackers simultaneously.
+Each configured tracker creates one device with the following entities:
 
-## Notes
+| Entity | Type | Description |
+|---|---|---|
+| **Location** | `device_tracker` | GPS position on the HA map, with the vehicle image from Sizzapp |
+| **Speed** | `sensor` | Current speed (km/h or mph, configurable) |
+| **Heading** | `sensor` | Direction of travel in degrees |
+| **Last Update** | `sensor` | Timestamp of the last tracker report |
+| **In Trip** | `binary_sensor` | Whether the vehicle is currently moving |
+| **Stale** | `binary_sensor` | Turns on when the tracker hasn't reported in for a while |
+
+## 🔁 Multiple trackers
+
+Add one integration instance per share link — each creates its own device. Tested with several Sizzapp trackers at once.
+
+## 🩺 Troubleshooting
+
+- **"Cannot connect" / "not found" when adding** — double-check the share link or code. Both the full URL (`https://sizzapp.com/location/<code>`) and the bare code are accepted.
+- **Location shows as unavailable** — the tracker may not have reported a fix yet; the **Last Update** and **Stale** sensors show how recent the data is.
+- **No icon in the HACS store panel** — this is a known HACS-frontend limitation with in-tree brand images on HA 2026.3+; the icon still renders correctly inside Home Assistant itself.
+
+## 📝 Notes
 
 - This integration uses the **public sharing API** only. It does not require your Sizzapp account credentials.
-- The sharing API provides location, speed, heading, trip status, and the vehicle image. Battery voltage, eco-drive scores, and other advanced data from the Sizzapp app are not available through this API.
-- The tracker image (if set in the Sizzapp app) shows up automatically as the entity picture.
+- The sharing API provides location, speed, heading, trip status and the vehicle image. Battery voltage, eco-drive scores and other advanced data from the Sizzapp app are not available through this API.
 
-## Links
+## ❤️ Support
+
+If this integration is useful to you, you can support development here:
+
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/patzeller)
+
+Bug reports and feature requests are welcome via [GitHub Issues](https://github.com/Artaiios/ha_sizzapp/issues).
+
+## 🔗 Links
 
 - [Sizzapp Website](https://www.sizzapp.com/)
 - [Changelog](CHANGELOG.md)
-- [Issues / Feature Requests](https://github.com/Artaiios/ha_sizzapp/issues)
+
+---
+
+*This is an unofficial, community-developed integration and is not affiliated with Sizzapp.*
