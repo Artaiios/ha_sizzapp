@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.5
+
+**Optionen-Dialog zeigt jetzt die gespeicherten Werte**
+
+- Der Optionen-Dialog (Poll-Intervall, Geschwindigkeitseinheit, Koordinatenpräzision, Stale-Schwelle) war bisher immer mit den Standardwerten vorbelegt, statt mit den zuletzt gespeicherten Einstellungen. Er zeigt jetzt die aktuellen Werte des Eintrags (bzw. bei einem Validierungsfehler die letzte Eingabe). Dank an @frenck für den Hinweis im HACS-Review.
+- Aufräumen: Der `OptionsFlow` nutzt jetzt das von Home Assistant bereitgestellte `self.config_entry` statt eines eigenen, ungenutzten Feldes.
+
 ## v1.3.4
 
 **Sicherheit: Share-Code vollständig aus Logs und persistierten Bezeichnern entfernt (HACS-Review-Auflagen)**

@@ -147,12 +147,12 @@ class SizzappConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):
-        return SizzappOptionsFlow(config_entry)
+        # OptionsFlow kennt den Entry über self.config_entry – kein Argument nötig.
+        return SizzappOptionsFlow()
 
 
 class SizzappOptionsFlow(config_entries.OptionsFlow):
-    def __init__(self, entry: config_entries.ConfigEntry) -> None:
-        self._entry = entry
+    # Kein eigenes __init__ nötig: OptionsFlow stellt self.config_entry bereit.
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         errors: dict[str, str] = {}
@@ -166,4 +166,12 @@ class SizzappOptionsFlow(config_entries.OptionsFlow):
             except Exception:
                 errors["base"] = "unknown"
 
-        return self.async_show_form(step_id="init", data_schema=OPTIONS_SCHEMA, errors=errors)
+        # Formular mit den aktuell gespeicherten Optionen vorbelegen (bzw. bei
+        # einem Validierungsfehler mit der letzten Eingabe), statt jedes Mal die
+        # Schema-Defaults zu zeigen.
+        suggested = user_input if user_input is not None else dict(self.config_entry.options)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=self.add_suggested_values_to_schema(OPTIONS_SCHEMA, suggested),
+            errors=errors,
+        )
