@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.3.6
+
+**Kompatibilität mit Home Assistant 2026.11 / 2027.6**
+
+- **Veralteten Import ersetzt.** `TrackerEntity` wurde aus `homeassistant.components.device_tracker.config_entry` importiert. Dieser Alias ist seit HA 2026.11 deprecated (Warnung im Log) und wird in HA Core 2027.6 entfernt – die Integration hätte dann nicht mehr geladen. Import jetzt aus `homeassistant.components.device_tracker`.
+- **Umstieg von der alten Domain `sizzapp` behält wieder die Geräte.** Seit HA 2026.11 gehört ein Gerät genau einem Config-Entry; `add_config_entry_id` wird ohne Gegenstück ignoriert. Die Migration hat die Entitäten deshalb an ein neu angelegtes Gerät gehängt – Bereich und weitere Geräteeinstellungen gingen verloren, das alte Gerät blieb leer zurück. Geräte werden jetzt mit `new_config_entry_id` verschoben, und zwar erst nach den Entitäten (sonst entfernt HA die noch am alten Entry hängenden Entitäten samt Verlauf). Ein vom deaktivierten alten Entry geerbtes `disabled_by` wird dabei aufgehoben.
+- **Keine Deprecation-Warnungen mehr aus der Migration.** `device_registry.devices` wird nicht mehr als Mapping benutzt (Ende HA 2027.9), `add_config_entry_id` nur noch auf HA-Versionen ohne `new_config_entry_id` (Ende HA 2027.8).
+- **README: Marketplace statt HACS.** Seit HA 2026.11 ist HACS als „Marketplace“ in Home Assistant integriert. Installationsanleitung entsprechend angepasst (ältere HA-Versionen weiterhin über HACS).
+- **README: Anleitung für den Umstieg von der alten Domain `sizzapp`.** Die in v1.3.0 eingeführte Migration setzt voraus, dass die alten Einträge vorher deaktiviert werden – sonst kann Home Assistant die noch geladenen Entitäten nicht übernehmen und legt Duplikate (`…_2`) an. Die Schritte sind jetzt dokumentiert.
+
 ## v1.3.5
 
 **Optionen-Dialog zeigt jetzt die gespeicherten Werte**

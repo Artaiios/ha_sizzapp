@@ -34,18 +34,27 @@ Custom integration for [Home Assistant](https://www.home-assistant.io/) that pul
 ## 📋 Requirements
 
 - Home Assistant **2026.3** or newer
-- [HACS](https://hacs.xyz/) installed
+- Home Assistant **2026.11+**: nothing else — the store is built in as the **Marketplace**. Older versions: [HACS](https://hacs.xyz/) installed
 - A Sizzapp sharing link or shared code (created in the Sizzapp app)
 
 ## 📥 Installation
 
-### Via HACS (recommended)
+### Via Marketplace / HACS (recommended)
 
 [![Open your Home Assistant instance and open this repository inside HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Artaiios&repository=ha_sizzapp&category=integration)
 
-1. Click the button above, **or** open HACS → search for **Sizzapp Location Sharing**.
+1. Click the button above, **or** open **Settings → Marketplace** (HA 2026.11+) / **HACS** (older versions) and search for **Sizzapp Location Sharing**.
 2. Install the integration and restart Home Assistant.
 3. Go to **Settings → Devices & Services → Add Integration** and search for **Sizzapp Location Sharing**.
+
+### Upgrading from the old `sizzapp` domain (v1.2.x and older)
+
+Up to v1.2.x the integration used the domain `sizzapp`; since v1.3.0 it is `sizzapp_tracker`. Home Assistant cannot move a config entry between domains, so each share code has to be added once more — your existing devices, entities, history and automations are taken over automatically:
+
+1. Install **Sizzapp Location Sharing** v1.3.0 or newer and restart Home Assistant.
+2. Under **Settings → Devices & Services**, **disable** every old **Sizzapp** entry (domain `sizzapp`). Do not delete them yet. This step matters: Home Assistant can only take over entities that are not currently loaded — otherwise you get duplicates with a `_2` suffix.
+3. **Add Integration → Sizzapp Location Sharing** and enter the same share code (or URL) as before, once per old entry.
+4. Check that the entities still have their old entity IDs and now belong to the new integration. Then delete the old, now empty `sizzapp` entries and remove the folder `config/custom_components/sizzapp`.
 
 ### Manual
 
@@ -89,7 +98,7 @@ Add one integration instance per share link — each creates its own device. Tes
 
 - **"Cannot connect" / "not found" when adding** — double-check the share link or code. Both the full URL (`https://sizzapp.com/location/<code>`) and the bare code are accepted.
 - **Location shows as unavailable** — the tracker may not have reported a fix yet; the **Last Update** and **Stale** sensors show how recent the data is.
-- **No icon in the HACS store panel** — this is a known HACS-frontend limitation with in-tree brand images on HA 2026.3+; the icon still renders correctly inside Home Assistant itself.
+- **No icon in the Marketplace / HACS store panel** — this is a known store-frontend limitation with in-tree brand images on HA 2026.3+; the icon still renders correctly inside Home Assistant itself.
 
 ## 📝 Notes
 
