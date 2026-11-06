@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import inspect
 import logging
 
 from homeassistant.config_entries import ConfigEntry
@@ -20,6 +21,13 @@ from .const import (
 from .coordinator import SizzappCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+# HA 2026.11+: Geräte gehören genau einem Config-Entry und werden mit
+# new_config_entry_id verschoben; add_config_entry_id ist deprecated (Ende
+# 2027.8). Ältere Versionen (ab 2026.3, siehe hacs.json) kennen nur add_….
+_DEVICE_MOVE_SUPPORTED = "new_config_entry_id" in inspect.signature(
+    dr.DeviceRegistry.async_update_device
+).parameters
 
 
 def _entry_unique_id(uid_source: str) -> str:
@@ -120,46 +128,16 @@ def _migrate_legacy_domain(
     """
     legacy_prefix = f"{LEGACY_DOMAIN}_{code_hint}_"  # "sizzapp_<code>_"
 
-    # Instanz-Isolation für Geräte über die unit_ids der Legacy-ENTITÄTEN dieser
-    # Instanz (deren unique_id mit legacy_prefix beginnt) – NICHT über die aktuell
-    # online Units. Sonst blieben Geräte offline-Units unmigriert, während ihre
-    # Entitäten schon umziehen (verwaiste/doppelte Geräte).
-    instance_unit_ids: set[str] = set()
-    for reg_entry in list(ent_reg.entities.values()):
-        if reg_entry.platform == LEGACY_DOMAIN and reg_entry.unique_id.startswith(legacy_prefix):
-            rest = reg_entry.unique_id[len(legacy_prefix):]
-            uid = rest.split("_", 1)[0] if rest else None
-            if uid:
-                instance_unit_ids.add(uid)
-
-    # --- Geräte ---
-    unit_to_device: dict[str, str] = {}
-    for device in list(dev_reg.devices.values()):
-        legacy_ids = {i for i in device.identifiers if i[0] == LEGACY_DOMAIN}
-        if not legacy_ids:
-            continue
-        # Nur Geräte, deren unit_id zu einer Legacy-Entität dieser Instanz gehört
-        # (online ODER offline) – so bleiben Gerät und Entität konsistent.
-        if not any(unit_id in instance_unit_ids for (_dom, unit_id) in legacy_ids):
-            continue
-
-        new_identifiers = {
-            (DOMAIN, unit_id) if dom == LEGACY_DOMAIN else (dom, unit_id)
-            for (dom, unit_id) in device.identifiers
-        }
-        try:
-            dev_reg.async_update_device(
-                device.id,
-                new_identifiers=new_identifiers,
-                add_config_entry_id=entry.entry_id,
-            )
-            for _dom, unit_id in legacy_ids:
-                unit_to_device[unit_id] = device.id
-            _LOGGER.info("Migrated Sizzapp device %s to new domain '%s'", device.id, DOMAIN)
-        except Exception:  # noqa: BLE001 – Migration darf den Setup nie blockieren
-            _LOGGER.exception("Could not migrate Sizzapp device %s", device.id)
+    # Reihenfolge ist wichtig: ERST Entitäten, DANN Geräte. Verschiebt man ein
+    # Gerät auf den neuen Config-Entry, entfernt Home Assistant alle Entitäten
+    # dieses Geräts, die noch am alten Entry hängen (Verlust von Verlauf und
+    # entity_id). Hängen die Entitäten schon am neuen Entry, bleiben sie erhalten.
 
     # --- Entitäten ---
+    # Instanz-Isolation über legacy_prefix (enthält den Code dieser Instanz).
+    # Die device_ids der übernommenen Entitäten bestimmen anschließend, welche
+    # Geräte umziehen – auch Geräte gerade offline gemeldeter Units.
+    legacy_device_ids: set[str] = set()
     for reg_entry in list(ent_reg.entities.values()):
         if reg_entry.platform != LEGACY_DOMAIN:
             continue
@@ -173,25 +151,61 @@ def _migrate_legacy_domain(
         if ent_reg.async_get_entity_id(reg_entry.domain, DOMAIN, new_unique_id):
             continue  # Ziel existiert bereits -> alte Zeile in Ruhe lassen
 
-        unit_id = rest.split("_", 1)[0] if rest else None
-        new_device_id = unit_to_device.get(unit_id)
-        extra: dict[str, str] = {}
-        if new_device_id is not None:
-            extra["new_device_id"] = new_device_id
-
         try:
+            # Gerät bleibt dasselbe (device_id ändert sich beim Verschieben nicht).
             ent_reg.async_update_entity_platform(
                 reg_entry.entity_id,
                 DOMAIN,
                 new_unique_id=new_unique_id,
                 new_config_entry_id=entry.entry_id,
-                **extra,
             )
+            if reg_entry.device_id:
+                legacy_device_ids.add(reg_entry.device_id)
             # NUR entity_id loggen – unique_ids enthalten das Geheimnis nicht mehr,
             # aber die entity_id ist ohnehin der unbedenklichste Bezeichner.
             _LOGGER.info("Migrated Sizzapp entity %s to new domain '%s'", reg_entry.entity_id, DOMAIN)
+        except Exception:  # noqa: BLE001 – Migration darf den Setup nie blockieren
+            # Typischer Grund: der alte 'sizzapp'-Eintrag ist noch geladen
+            # ("Only entities that haven't been loaded can be migrated").
+            _LOGGER.exception(
+                "Could not migrate Sizzapp entity %s – disable the old 'sizzapp' "
+                "entry first, then reload this entry",
+                reg_entry.entity_id,
+            )
+
+    # --- Geräte ---
+    # Über die device_ids der übernommenen Entitäten statt die gesamte
+    # Device-Registry zu durchlaufen (dev_reg.devices als Mapping ist seit
+    # HA 2026.11 deprecated).
+    for device_id in legacy_device_ids:
+        device = dev_reg.async_get(device_id)
+        if device is None:
+            continue
+        if not any(dom == LEGACY_DOMAIN for (dom, _uid) in device.identifiers):
+            continue
+
+        new_identifiers = {
+            (DOMAIN, unit_id) if dom == LEGACY_DOMAIN else (dom, unit_id)
+            for (dom, unit_id) in device.identifiers
+        }
+        update_kwargs: dict = {"new_identifiers": new_identifiers}
+        if _DEVICE_MOVE_SUPPORTED:
+            # Ab HA 2026.11 gehört ein Gerät genau einem Config-Entry; ein nur per
+            # add_config_entry_id "hinzugefügter" Entry wird ignoriert – das Gerät
+            # bliebe am alten Entry und HA legte ein Duplikat an (Bereich usw.
+            # gingen verloren). Daher das Gerät verschieben.
+            update_kwargs["new_config_entry_id"] = entry.entry_id
+        else:
+            update_kwargs["add_config_entry_id"] = entry.entry_id
+        if device.disabled_by is dr.DeviceEntryDisabler.CONFIG_ENTRY:
+            # Der alte Entry ist (laut Anleitung) deaktiviert; das Gerät soll am
+            # neuen, aktiven Entry wieder aktiv sein.
+            update_kwargs["disabled_by"] = None
+        try:
+            dev_reg.async_update_device(device.id, **update_kwargs)
+            _LOGGER.info("Migrated Sizzapp device %s to new domain '%s'", device.id, DOMAIN)
         except Exception:  # noqa: BLE001
-            _LOGGER.exception("Could not migrate Sizzapp entity %s", reg_entry.entity_id)
+            _LOGGER.exception("Could not migrate Sizzapp device %s", device.id)
 
 
 def _migrate_plaintext_uid(
